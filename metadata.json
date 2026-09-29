@@ -1,0 +1,6 @@
+{
+  "name": "Cabinet d'orthophonie Belgaied Maroua",
+  "description": "Application de gestion de planning de séances (45 min), suivi des patients conventionnés et tableau de bord statistique.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
