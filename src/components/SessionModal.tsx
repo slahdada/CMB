@@ -7,6 +7,7 @@ import {
   ShieldCheck, 
   ShieldAlert, 
   AlertTriangle, 
+  AlertCircle,
   Trash2, 
   Check, 
   FileText 
@@ -73,6 +74,35 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   const [tarif, setTarif] = useState<number>(
     sessionToEdit?.tarif ?? (isConventionne ? settings.tarifConventionne : settings.tarifNonConventionne)
   );
+  const [orthophonisteNom, setOrthophonisteNom] = useState<string>(
+    sessionToEdit?.orthophonisteNom || 'Maroua'
+  );
+
+  // Synchroniser systématiquement les champs dès que sessionToEdit change ou lors de l'ouverture
+  useEffect(() => {
+    if (sessionToEdit) {
+      setPatientId(sessionToEdit.patientId);
+      setDate(sessionToEdit.date);
+      setStartTime(sessionToEdit.startTime);
+      setStatus(sessionToEdit.status);
+      setIsConventionne(sessionToEdit.isConventionne);
+      setMotif(sessionToEdit.motif || '');
+      setNotesSeance(sessionToEdit.notesSeance || '');
+      setTarif(sessionToEdit.tarif);
+      setOrthophonisteNom(sessionToEdit.orthophonisteNom || 'Maroua');
+    } else {
+      setPatientId(defaultPatient?.id || (patients[0]?.id ?? ''));
+      setDate(defaultDate || '2026-09-29');
+      setStartTime(defaultTime || '08:30');
+      setStatus('planifiee');
+      const conv = defaultPatient ? defaultPatient.isConventionne : true;
+      setIsConventionne(conv);
+      setMotif('');
+      setNotesSeance('');
+      setTarif(conv ? settings.tarifConventionne : settings.tarifNonConventionne);
+      setOrthophonisteNom('Maroua');
+    }
+  }, [sessionToEdit, defaultDate, defaultTime, defaultPatient, isOpen, patients, settings]);
 
   // Early return after all hooks have been declared
   if (!isOpen) return null;
@@ -93,42 +123,91 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   // Fixed 45-min end time
   const endTime = add45Minutes(startTime);
 
-  // Check for conflicts
-  const hasConflict = existingSessions.some((s) => {
+  // Nom du patient actuellement ciblé
+  const selectedPatientObj = patients.find((pat) => pat.id === patientId);
+  const currentPatientName = selectedPatientObj ? selectedPatientObj.nom : (sessionToEdit?.patientNom || '');
+
+  // 1. RÈGLE STRICTE : Bloquer le même patient le même jour deux fois ou avec deux orthophonistes en même temps
+  const patientSameDayConflict = existingSessions.find((s) => {
+    if (isEditing && s.id === sessionToEdit.id) return false;
+    if (s.date !== date) return false;
+    if (s.status === 'annulee') return false;
+    const matchId = patientId && s.patientId === patientId;
+    const matchNom = currentPatientName && s.patientNom.trim().toLowerCase() === currentPatientName.trim().toLowerCase();
+    return matchId || matchNom;
+  });
+
+  const isSimultaneousConflict = patientSameDayConflict && (
+    patientSameDayConflict.startTime === startTime ||
+    isOverlapping(startTime, endTime, patientSameDayConflict.startTime, patientSameDayConflict.endTime)
+  );
+
+  // 2. Conflit orthophoniste : l'orthophoniste ne peut pas avoir deux séances au même moment
+  const sameSlotSessions = existingSessions.filter((s) => {
     if (isEditing && s.id === sessionToEdit.id) return false;
     if (s.date !== date) return false;
     if (s.status === 'annulee') return false;
     return isOverlapping(startTime, endTime, s.startTime, s.endTime);
   });
 
-  const conflictingSession = hasConflict
-    ? existingSessions.find(
-        (s) =>
-          (!isEditing || s.id !== sessionToEdit.id) &&
-          s.date === date &&
-          s.status !== 'annulee' &&
-          isOverlapping(startTime, endTime, s.startTime, s.endTime)
-      )
-    : null;
+  const sameOrthoConflict = sameSlotSessions.find(
+    (s) => (s.orthophonisteNom || 'Maroua').trim().toLowerCase() === orthophonisteNom.trim().toLowerCase()
+  );
+  const maxSimultaneousReached = sameSlotSessions.length >= 3;
+
+  const isBlocked = !!patientSameDayConflict || !!sameOrthoConflict || maxSimultaneousReached;
+  const hasConflict = isBlocked;
+
+  const conflictingSession = sameOrthoConflict || (maxSimultaneousReached ? sameSlotSessions[0] : null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Blocage strict : aucun enregistrement en double n'est autorisé
+    if (patientSameDayConflict) {
+      alert(
+        isSimultaneousConflict
+          ? `Blocage : ${currentPatientName} a déjà une séance prévue à la même heure (${patientSameDayConflict.startTime}) avec ${patientSameDayConflict.orthophonisteNom || 'Maroua'}.\nIl est strictement interdit d'inscrire le même patient avec deux orthophonistes en même temps.`
+          : `Blocage : ${currentPatientName} a déjà une séance prévue le ${date} de ${patientSameDayConflict.startTime} à ${patientSameDayConflict.endTime} avec ${patientSameDayConflict.orthophonisteNom || 'Maroua'}.\nUn patient ne peut pas avoir deux séances le même jour.`
+      );
+      return;
+    }
+
+    if (sameOrthoConflict) {
+      alert(`L'orthophoniste ${orthophonisteNom} est déjà occupé(e) sur ce créneau.`);
+      return;
+    }
+
+    if (maxSimultaneousReached) {
+      alert(`Le créneau ${startTime} comporte déjà 3 séances simultanées.`);
+      return;
+    }
+
     const p = patients.find((pat) => pat.id === patientId);
-    if (!p) return;
+    const resolvedNom = p ? p.nom : (sessionToEdit?.patientNom || 'Patient');
+    const resolvedPatientId = p ? p.id : (sessionToEdit?.patientId || patientId);
+    const resolvedOrtho = orthophonisteNom.trim() || 'Maroua';
+    const pos: 1 | 2 | 3 = resolvedOrtho.toLowerCase().includes('mariem')
+      ? 2
+      : resolvedOrtho.toLowerCase().includes('stagiaire')
+      ? 3
+      : 1;
 
     const newSession: Session = {
       id: sessionToEdit?.id || `ses-${Date.now()}`,
-      patientId: p.id,
-      patientNom: p.nom,
+      patientId: resolvedPatientId,
+      patientNom: resolvedNom,
       date,
       startTime,
-      endTime,
+      endTime: add45Minutes(startTime),
       durationMinutes: 45, // Toujours 45 min
       isConventionne,
       status,
       tarif: Number(tarif),
       motif: motif.trim() || undefined,
       notesSeance: notesSeance.trim() || undefined,
+      orthophonisteNom: resolvedOrtho,
+      position: pos,
     };
 
     onSaveSession(newSession);
@@ -161,14 +240,45 @@ export const SessionModal: React.FC<SessionModalProps> = ({
           </button>
         </div>
 
-        {/* Conflict Warning */}
-        {hasConflict && (
+        {/* Conflict Warning & Strict Blockers */}
+        {patientSameDayConflict && (
+          <div className="mx-4 sm:mx-5 mt-4 p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-xs text-rose-950 flex items-start gap-2.5 animate-in fade-in duration-150">
+            <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="font-black text-rose-900 block text-sm">
+                {isSimultaneousConflict
+                  ? "Enregistrement bloqué : Conflit d'horaire avec deux orthophonistes !"
+                  : "Enregistrement bloqué : Patient déjà programmé ce jour-là !"}
+              </strong>
+              <p className="mt-1 text-rose-900 leading-relaxed font-medium">
+                Le patient <strong>{currentPatientName || patientSameDayConflict.patientNom}</strong> a déjà une séance enregistrée le <strong>{date}</strong> de <strong>{patientSameDayConflict.startTime} à {patientSameDayConflict.endTime}</strong> avec <strong>{patientSameDayConflict.orthophonisteNom || 'Maroua'}</strong>.
+              </p>
+              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-lg border border-rose-200">
+                <span>⛔ Règle du cabinet : Un même patient ne peut pas avoir deux séances le même jour, ni deux orthophonistes en même temps.</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!patientSameDayConflict && sameOrthoConflict && (
           <div className="mx-4 sm:mx-5 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <strong className="font-bold">Attention, chevauchement d'horaire !</strong>
+              <strong className="font-bold">L'orthophoniste {orthophonisteNom} est déjà occupé(e) !</strong>
               <p className="mt-0.5 text-amber-800">
-                Une autre séance avec <strong>{conflictingSession?.patientNom}</strong> est déjà enregistrée de {conflictingSession?.startTime} à {conflictingSession?.endTime}.
+                Une séance avec <strong>{sameOrthoConflict.patientNom}</strong> est déjà enregistrée de {sameOrthoConflict.startTime} à {sameOrthoConflict.endTime}.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!patientSameDayConflict && !sameOrthoConflict && maxSimultaneousReached && (
+          <div className="mx-4 sm:mx-5 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="font-bold">Capacité maximale atteinte (3 séances simultanées)</strong>
+              <p className="mt-0.5 text-amber-800">
+                Le créneau de {startTime} à {endTime} a déjà 3 séances pour les 3 orthophonistes.
               </p>
             </div>
           </div>
@@ -176,6 +286,42 @@ export const SessionModal: React.FC<SessionModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4">
+          {/* Orthophoniste Attribué (Maroua, Mariem, Stagiaire) */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
+            <label className="block text-xs font-bold text-slate-800">
+              Orthophoniste attribué(e) *
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { name: 'Maroua', label: 'Maroua (Titulaire)', activeBg: 'bg-teal-600 text-white' },
+                { name: 'Mariem', label: 'Mariem (Collab.)', activeBg: 'bg-indigo-600 text-white' },
+                { name: 'Stagiaire', label: 'Stagiaire', activeBg: 'bg-amber-600 text-white' },
+              ].map((ortho) => (
+                <button
+                  type="button"
+                  key={ortho.name}
+                  onClick={() => setOrthophonisteNom(ortho.name)}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition text-center ${
+                    orthophonisteNom === ortho.name
+                      ? `${ortho.activeBg} border-transparent shadow-xs`
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {ortho.label}
+                </button>
+              ))}
+            </div>
+            <div className="pt-0.5">
+              <input
+                type="text"
+                value={orthophonisteNom}
+                onChange={(e) => setOrthophonisteNom(e.target.value)}
+                placeholder="Ou saisir un autre nom (remplaçant, externe)..."
+                className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-800"
+              />
+            </div>
+          </div>
+
           {/* Patient Selector */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -185,14 +331,32 @@ export const SessionModal: React.FC<SessionModalProps> = ({
               value={patientId}
               onChange={(e) => handlePatientChange(e.target.value)}
               required
-              className="w-full px-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-800"
+              className={`w-full px-3 py-2 text-xs sm:text-sm rounded-xl border bg-white focus:outline-none focus:ring-2 font-semibold transition ${
+                patientSameDayConflict
+                  ? 'border-rose-500 bg-rose-50/40 text-rose-950 focus:ring-rose-500'
+                  : 'border-slate-200 text-slate-800 focus:ring-teal-500'
+              }`}
             >
+              {sessionToEdit && !patients.some((p) => p.id === sessionToEdit.patientId) && (
+                <option value={sessionToEdit.patientId}>
+                  {sessionToEdit.patientNom} (Patient d'origine)
+                </option>
+              )}
               {patients.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.nom} {p.isConventionne ? '(Conventionné CNAM)' : '(Privé)'} - {p.pathologie}
                 </option>
               ))}
             </select>
+            {patientSameDayConflict && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-rose-600 font-bold text-xs animate-in fade-in duration-150">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-rose-600" />
+                <span>Enregistrement bloqué : Patient déjà programmé ce jour-là !</span>
+                <span className="text-[11px] font-medium text-rose-700 hidden sm:inline">
+                  ({patientSameDayConflict.startTime} avec {patientSameDayConflict.orthophonisteNom || 'Maroua'})
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Date & Quick 45-min slots */}
@@ -399,10 +563,25 @@ export const SessionModal: React.FC<SessionModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 active:scale-95 transition shadow-sm"
+                disabled={isBlocked}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
+                  isBlocked
+                    ? 'bg-rose-100 text-rose-600 border border-rose-300 cursor-not-allowed opacity-90'
+                    : 'bg-teal-600 text-white hover:bg-teal-700 active:scale-95'
+                }`}
               >
-                <Check className="w-4 h-4" />
-                <span>{isEditing ? 'Enregistrer modifications' : 'Confirmer la séance'}</span>
+                {isBlocked ? <AlertCircle className="w-4 h-4 text-rose-600" /> : <Check className="w-4 h-4" />}
+                <span>
+                  {patientSameDayConflict
+                    ? (isSimultaneousConflict ? 'Bloqué : Même patient au même temps' : 'Bloqué : Déjà programmé ce jour')
+                    : sameOrthoConflict
+                    ? 'Créneau orthophoniste occupé'
+                    : maxSimultaneousReached
+                    ? '3 créneaux déjà occupés'
+                    : isEditing
+                    ? 'Enregistrer modifications'
+                    : 'Confirmer la séance'}
+                </span>
               </button>
             </div>
           </div>

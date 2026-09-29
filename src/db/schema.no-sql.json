@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Structure NoSQL (MongoDB / Firebase Firestore) pour l'agenda simultané triple praticiens",
+  "collections": {
+    "agenda_slots": {
+      "document_id": "YYYY-MM-DD_HH:mm (Ex: 2026-09-29_14:00)",
+      "fields": {
+        "date": "2026-09-29",
+        "heureDebut": "14:00",
+        "heureFin": "14:45",
+        "dureeMinutes": 45,
+        "derniereMiseAJour": "2026-09-29T14:00:23.120Z",
+        "positions": [
+          {
+            "position": 1,
+            "orthophonisteNom": "Maroua",
+            "patientNom": "Amine Ben Salem",
+            "patientId": "pat-1",
+            "telephone": "+216 98 123 456",
+            "status": "planifie",
+            "notes": "Langage oral & articulation",
+            "savedAt": "2026-09-29T14:00:23.120Z"
+          },
+          {
+            "position": 2,
+            "orthophonisteNom": "Mariem",
+            "patientNom": "Yasmine Trabelsi",
+            "patientId": "pat-2",
+            "telephone": "+216 22 345 678",
+            "status": "planifie",
+            "notes": "Dyslexie - lecture rapide",
+            "savedAt": "2026-09-29T14:00:23.120Z"
+          },
+          {
+            "position": 3,
+            "orthophonisteNom": "Stagiaire",
+            "patientNom": "Rayan Chahed",
+            "patientId": "pat-3",
+            "telephone": "+216 55 456 789",
+            "status": "planifie",
+            "notes": "Praxies linguales",
+            "savedAt": "2026-09-29T14:00:23.120Z"
+          }
+        ]
+      }
+    },
+    "orthophonistes": {
+      "document_id": "ortho_id (Ex: ortho-1)",
+      "fields": {
+        "nom": "Maroua",
+        "role": "titulaire",
+        "positionParDefaut": 1,
+        "couleur": "#0d9488",
+        "isActive": true
+      }
+    }
+  }
+}

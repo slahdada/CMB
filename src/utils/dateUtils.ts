@@ -112,6 +112,79 @@ export function cleanWhatsAppNumber(phone: string): string {
   return cleaned;
 }
 
+export interface MonthDayInfo {
+  date: Date;
+  dateISO: string;
+  dayNumber: number;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  isWeekend: boolean;
+}
+
+// Génère la grille complète du calendrier mensuel (Lundi à Dimanche)
+export function getMonthCalendarGrid(date: Date, referenceToday: Date = new Date(2026, 8, 29)): MonthDayInfo[] {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  // Jour de la semaine du 1er du mois (0 = Dimanche, 1 = Lundi...)
+  const startDay = firstDayOfMonth.getDay();
+  // Décalage pour démarrer le Lundi (Lundi = 0, ..., Dimanche = 6)
+  const offset = startDay === 0 ? 6 : startDay - 1;
+
+  const grid: MonthDayInfo[] = [];
+  const refTodayISO = formatDateISO(referenceToday);
+
+  // Jours du mois précédent pour combler la 1ère semaine
+  const prevMonthLastDay = new Date(year, month, 0).getDate();
+  for (let i = offset - 1; i >= 0; i--) {
+    const d = new Date(year, month - 1, prevMonthLastDay - i);
+    const iso = formatDateISO(d);
+    grid.push({
+      date: d,
+      dateISO: iso,
+      dayNumber: d.getDate(),
+      isCurrentMonth: false,
+      isToday: iso === refTodayISO,
+      isWeekend: d.getDay() === 0,
+    });
+  }
+
+  // Jours du mois en cours
+  for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+    const d = new Date(year, month, day);
+    const iso = formatDateISO(d);
+    grid.push({
+      date: d,
+      dateISO: iso,
+      dayNumber: day,
+      isCurrentMonth: true,
+      isToday: iso === refTodayISO,
+      isWeekend: d.getDay() === 0,
+    });
+  }
+
+  // Jours du mois suivant pour compléter les 35 ou 42 cases de la grille
+  const remaining = 7 - (grid.length % 7);
+  if (remaining < 7) {
+    for (let day = 1; day <= remaining; day++) {
+      const d = new Date(year, month + 1, day);
+      const iso = formatDateISO(d);
+      grid.push({
+        date: d,
+        dateISO: iso,
+        dayNumber: day,
+        isCurrentMonth: false,
+        isToday: iso === refTodayISO,
+        isWeekend: d.getDay() === 0,
+      });
+    }
+  }
+
+  return grid;
+}
+
 // Créer le lien WhatsApp de rappel de séance
 export function createWhatsAppReminderLink(
   patientNom: string,

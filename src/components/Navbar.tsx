@@ -1,9 +1,10 @@
 import React from 'react';
-import { Calendar, Users, BarChart3, Settings, Plus, Sparkles, WifiOff, Phone } from 'lucide-react';
+import { Calendar, Users, BarChart3, Settings, Plus, Sparkles, WifiOff, Phone, Layers, FileText, FileUp } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
+import { CabinetLogo } from './CabinetLogo';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
-export type ActiveTab = 'planning' | 'patients' | 'dashboard' | 'settings';
+export type ActiveTab = 'planning' | 'simultane' | 'patients' | 'dashboard' | 'settings';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -11,6 +12,8 @@ interface NavbarProps {
   onOpenNewSession: () => void;
   onOpenNewPatient: () => void;
   onOpenPhoneModal: () => void;
+  onExportPDF: () => void;
+  onOpenImportModal: () => void;
   totalPatientsCount: number;
   totalSessionsThisWeek: number;
   conventionnesThisWeek: number;
@@ -22,6 +25,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewSession,
   onOpenNewPatient,
   onOpenPhoneModal,
+  onExportPDF,
+  onOpenImportModal,
   totalPatientsCount,
   totalSessionsThisWeek,
   conventionnesThisWeek,
@@ -35,18 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Cabinet identity */}
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative flex-shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-teal-600 via-teal-700 to-slate-800 p-0.5 shadow-md flex items-center justify-center text-white">
-              {/* Stylized speech & hearing therapy icon */}
-              <svg className="w-6 h-6 sm:w-7 sm:h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                <path d="M8 10h.01" />
-                <path d="M12 10h.01" />
-                <path d="M16 10h.01" />
-              </svg>
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full flex items-center justify-center text-[8px] font-black text-slate-900">
-                ✓
-              </span>
-            </div>
+            <CabinetLogo size="md" />
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -79,6 +73,40 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <PWAInstallButton />
 
+            {/* Bouton Export PDF contextuel */}
+            <button
+              onClick={onExportPDF}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50/90 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-rose-700 hover:bg-rose-100 hover:border-rose-300 hover:text-rose-900 active:scale-95 transition shadow-2xs group/pdf"
+              title={
+                activeTab === 'patients'
+                  ? 'Exporter le registre complet des patients en PDF'
+                  : activeTab === 'dashboard'
+                  ? 'Exporter le bilan statistique du cabinet en PDF'
+                  : activeTab === 'simultane'
+                  ? "Exporter le planning de l'agenda en PDF"
+                  : 'Exporter le planning des séances en PDF'
+              }
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600 transition-transform group-hover/pdf:scale-110" />
+              <span className="hidden sm:inline">Exporter en PDF</span>
+              <span className="sm:hidden">PDF</span>
+            </button>
+
+            {/* Bouton Importation de données contextuel */}
+            <button
+              onClick={onOpenImportModal}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 active:scale-95 transition shadow-2xs group/import"
+              title={
+                activeTab === 'patients'
+                  ? 'Importer une liste de patients (JSON ou CSV)'
+                  : 'Importer des séances ou un planning (JSON ou CSV)'
+              }
+            >
+              <FileUp className="w-3.5 h-3.5 text-slate-600 transition-transform group-hover/import:scale-110" />
+              <span className="hidden sm:inline">Importer des données</span>
+              <span className="sm:hidden">Import</span>
+            </button>
+
             {/* Bouton d'appel téléphonique direct */}
             <button
               onClick={onOpenPhoneModal}
@@ -91,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={onOpenNewPatient}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition shadow-2xs"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-300 active:scale-95 transition shadow-2xs"
             >
               <Users className="w-3.5 h-3.5 text-teal-600" />
               <span>Nouveau patient</span>
@@ -119,6 +147,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Calendar className={`w-4 h-4 ${activeTab === 'planning' ? 'text-teal-600' : 'text-slate-400'}`} />
             <span>Planning & Séances</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('simultane')}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+              activeTab === 'simultane'
+                ? 'bg-teal-50 text-teal-800 border border-teal-200/80 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+            }`}
+          >
+            <Layers className={`w-4 h-4 ${activeTab === 'simultane' ? 'text-teal-600' : 'text-slate-400'}`} />
+            <span>Agenda Triple (3 Ortho)</span>
+            <span className="hidden lg:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-1.5 py-0.5 rounded-full">
+              Autosave
+            </span>
           </button>
 
           <button

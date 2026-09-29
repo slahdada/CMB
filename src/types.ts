@@ -36,6 +36,8 @@ export interface Session {
   tarif: number; // Montant en DT / TND
   motif?: string; // Ex: "Bilan orthophonique", "Séance de rééducation n°8"
   notesSeance?: string;
+  orthophonisteNom?: string; // "Maroua" | "Mariem" | "Stagiaire" | nom libre
+  position?: 1 | 2 | 3;
 }
 
 export interface CabinetSettings {

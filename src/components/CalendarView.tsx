@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon, 
+  CalendarDays,
   Clock, 
   MessageSquare, 
   CheckCircle2, 
@@ -19,6 +20,7 @@ import {
 import { Session, Patient, SessionStatus } from '../types';
 import { 
   STANDARD_45_SLOTS, 
+  add45Minutes,
   formatDateISO, 
   getMondayOfWeek, 
   getWeekDays, 
@@ -26,7 +28,8 @@ import {
   formatShortFrenchDate, 
   createWhatsAppReminderLink, 
   parseDateISO, 
-  isOverlapping 
+  isOverlapping,
+  getMonthCalendarGrid 
 } from '../utils/dateUtils';
 
 interface CalendarViewProps {
@@ -35,6 +38,8 @@ interface CalendarViewProps {
   onOpenSessionModal: (sessionToEdit?: Session, defaultDate?: string, defaultTime?: string) => void;
   onUpdateSessionStatus: (sessionId: string, newStatus: SessionStatus) => void;
   onOpenPatientDetails: (patientId: string) => void;
+  externalSelectedDate?: Date;
+  onDateChange?: (date: Date) => void;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -43,11 +48,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onOpenSessionModal,
   onUpdateSessionStatus,
   onOpenPatientDetails,
+  externalSelectedDate,
+  onDateChange,
 }) => {
   // Current reference date (default: today 2026-09-29)
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date(2026, 8, 29));
-  const [viewMode, setViewMode] = useState<'semaine' | 'jour' | 'liste'>('semaine');
+  const [selectedDate, setSelectedDate] = useState<Date>(externalSelectedDate || new Date(2026, 8, 29));
+  const [viewMode, setViewMode] = useState<'semaine' | 'jour' | 'mois' | 'liste'>('semaine');
   const [filterInsurance, setFilterInsurance] = useState<'all' | 'conventionne' | 'non_conventionne'>('all');
+
+  useEffect(() => {
+    if (externalSelectedDate) {
+      setSelectedDate(externalSelectedDate);
+    }
+  }, [externalSelectedDate]);
+
+  const updateSelectedDate = (newDate: Date) => {
+    setSelectedDate(newDate);
+    if (onDateChange) onDateChange(newDate);
+  };
 
   const selectedDateISO = formatDateISO(selectedDate);
   const currentMonday = getMondayOfWeek(selectedDate);
@@ -56,30 +74,34 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Navigate dates
   const handlePrev = () => {
     const next = new Date(selectedDate);
-    if (viewMode === 'semaine') {
+    if (viewMode === 'mois') {
+      next.setMonth(next.getMonth() - 1);
+    } else if (viewMode === 'semaine') {
       next.setDate(next.getDate() - 7);
     } else if (viewMode === 'jour') {
       next.setDate(next.getDate() - 1);
     } else {
       next.setDate(next.getDate() - 14);
     }
-    setSelectedDate(next);
+    updateSelectedDate(next);
   };
 
   const handleNext = () => {
     const next = new Date(selectedDate);
-    if (viewMode === 'semaine') {
+    if (viewMode === 'mois') {
+      next.setMonth(next.getMonth() + 1);
+    } else if (viewMode === 'semaine') {
       next.setDate(next.getDate() + 7);
     } else if (viewMode === 'jour') {
       next.setDate(next.getDate() + 1);
     } else {
       next.setDate(next.getDate() + 14);
     }
-    setSelectedDate(next);
+    updateSelectedDate(next);
   };
 
   const handleToday = () => {
-    setSelectedDate(new Date(2026, 8, 29)); // Default to project active date
+    updateSelectedDate(new Date(2026, 8, 29)); // Default to project active date
   };
 
   // Find patient phone for WhatsApp
@@ -129,6 +151,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
+  // Orthophoniste badge styling (Maroua, Mariem, Stagiaire)
+  const renderOrthoBadge = (orthoNom?: string) => {
+    const name = orthoNom || 'Maroua';
+    const lower = name.toLowerCase();
+    let badgeClass = 'bg-teal-100 text-teal-800 border-teal-200';
+    if (lower.includes('mariem')) {
+      badgeClass = 'bg-indigo-100 text-indigo-800 border-indigo-200';
+    } else if (lower.includes('stagiaire')) {
+      badgeClass = 'bg-amber-100 text-amber-900 border-amber-200';
+    }
+    return (
+      <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded font-bold border ${badgeClass}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80"></span>
+        <span>{name}</span>
+      </span>
+    );
+  };
+
   // Quick stats for current week
   const weekSessions = sessions.filter((s) => {
     const sDate = parseDateISO(s.date);
@@ -141,6 +181,65 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const weekTotal = weekSessions.length;
   const weekConv = weekSessions.filter((s) => s.isConventionne).length;
   const weekNonConv = weekTotal - weekConv;
+
+  // Slots dynamiques pour la semaine (standards 45 min + tout horaire spécifique de séance)
+  const activeWeekSlots = useMemo(() => {
+    const slotMap = new Map<string, { start: string; end: string; label: string; period: 'matin' | 'aprem' }>();
+    STANDARD_45_SLOTS.forEach((s) => slotMap.set(s.start, s));
+
+    weekSessions.forEach((session) => {
+      if (!slotMap.has(session.startTime)) {
+        slotMap.set(session.startTime, {
+          start: session.startTime,
+          end: session.endTime || add45Minutes(session.startTime),
+          label: `${session.startTime} - ${session.endTime || add45Minutes(session.startTime)}`,
+          period: session.startTime < '13:00' ? 'matin' : 'aprem',
+        });
+      }
+    });
+
+    return Array.from(slotMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+  }, [weekSessions]);
+
+  // Slots dynamiques pour la journée (standards 45 min + créneaux spécifiques de ce jour)
+  const activeDaySlots = useMemo(() => {
+    const slotMap = new Map<string, { start: string; end: string; label: string; period: 'matin' | 'aprem' }>();
+    STANDARD_45_SLOTS.forEach((s) => slotMap.set(s.start, s));
+
+    sessions
+      .filter((s) => s.date === selectedDateISO)
+      .forEach((session) => {
+        if (!slotMap.has(session.startTime)) {
+          slotMap.set(session.startTime, {
+            start: session.startTime,
+            end: session.endTime || add45Minutes(session.startTime),
+            label: `${session.startTime} - ${session.endTime || add45Minutes(session.startTime)}`,
+            period: session.startTime < '13:00' ? 'matin' : 'aprem',
+          });
+        }
+      });
+
+    return Array.from(slotMap.values()).sort((a, b) => a.start.localeCompare(b.start));
+  }, [sessions, selectedDateISO]);
+
+  // Données et statistiques pour la vue mensuelle (Planning par mois)
+  const monthDays = useMemo(() => {
+    return getMonthCalendarGrid(selectedDate);
+  }, [selectedDate]);
+
+  const monthSessions = useMemo(() => {
+    const y = selectedDate.getFullYear();
+    const m = selectedDate.getMonth();
+    return sessions.filter((s) => {
+      const d = parseDateISO(s.date);
+      return d.getFullYear() === y && d.getMonth() === m;
+    });
+  }, [sessions, selectedDate]);
+
+  const monthTotal = monthSessions.length;
+  const monthConv = monthSessions.filter((s) => s.isConventionne).length;
+  const monthDone = monthSessions.filter((s) => s.status === 'realisee').length;
+  const monthTotalRecettes = monthSessions.filter((s) => s.status !== 'annulee').reduce((sum, s) => sum + s.tarif, 0);
 
   return (
     <div className="space-y-4">
@@ -182,9 +281,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </>
                 )}
                 {viewMode === 'jour' && formatFrenchDate(selectedDate)}
+                {viewMode === 'mois' && (
+                  <>
+                    Planning du mois de {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+                  </>
+                )}
                 {viewMode === 'liste' && `Agenda du cabinet • ${formatFrenchDate(selectedDate)}`}
               </span>
             </div>
+
+            {/* Bouton direct Planning par mois si pas déjà en vue mois */}
+            {viewMode !== 'mois' && (
+              <button
+                onClick={() => setViewMode('mois')}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-100 hover:border-teal-300 text-xs font-bold transition shadow-2xs active:scale-95 ml-1"
+                title="Passer en vue planning par mois"
+              >
+                <CalendarDays className="w-3.5 h-3.5 text-teal-600" />
+                <span>Planning par mois</span>
+              </button>
+            )}
           </div>
 
           {/* Filters & View Switcher */}
@@ -199,7 +315,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Tous ({weekTotal})
+                Tous ({viewMode === 'mois' ? monthTotal : weekTotal})
               </button>
               <button
                 onClick={() => setFilterInsurance('conventionne')}
@@ -210,7 +326,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 }`}
               >
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Conventionnés ({weekConv})</span>
+                <span>Conventionnés ({viewMode === 'mois' ? monthConv : weekConv})</span>
               </button>
               <button
                 onClick={() => setFilterInsurance('non_conventionne')}
@@ -221,15 +337,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Privé ({weekNonConv})</span>
+                <span>Privé ({viewMode === 'mois' ? monthTotal - monthConv : weekNonConv})</span>
               </button>
             </div>
 
-            {/* View Mode */}
+            {/* View Mode Switcher avec bouton Planning par mois */}
             <div className="inline-flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200/60 text-xs font-semibold">
               <button
                 onClick={() => setViewMode('semaine')}
-                className={`px-3 py-1.5 rounded-lg transition ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition ${
                   viewMode === 'semaine'
                     ? 'bg-white text-teal-800 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
@@ -239,7 +355,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </button>
               <button
                 onClick={() => setViewMode('jour')}
-                className={`px-3 py-1.5 rounded-lg transition ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition ${
                   viewMode === 'jour'
                     ? 'bg-white text-teal-800 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
@@ -248,8 +364,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 Jour
               </button>
               <button
+                onClick={() => setViewMode('mois')}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                  viewMode === 'mois'
+                    ? 'bg-white text-teal-800 shadow-2xs font-bold ring-1 ring-teal-500/20'
+                    : 'text-slate-700 hover:text-slate-900'
+                }`}
+                title="Planning par mois"
+              >
+                <CalendarDays className={`w-3.5 h-3.5 ${viewMode === 'mois' ? 'text-teal-600' : 'text-slate-400'}`} />
+                <span>Mois</span>
+              </button>
+              <button
                 onClick={() => setViewMode('liste')}
-                className={`px-3 py-1.5 rounded-lg transition ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition ${
                   viewMode === 'liste'
                     ? 'bg-white text-teal-800 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-slate-900'
@@ -327,7 +455,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
               {/* Grid: 45 min slots */}
               <div className="divide-y divide-slate-100">
-                {STANDARD_45_SLOTS.map((slot) => (
+                {activeWeekSlots.map((slot) => (
                   <div key={slot.start} className="grid grid-cols-7 min-h-[78px] group">
                     {/* Time Slot Column */}
                     <div className="p-2 border-r border-slate-200 bg-slate-50/40 flex flex-col justify-center items-center text-center">
@@ -396,8 +524,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     {renderStatusBadge(session.status)}
                                   </div>
 
-                                  {/* Insurance tag & Motif */}
+                                  {/* Ortho badge & Insurance tag */}
                                   <div className="mt-1 flex items-center justify-between gap-1 text-[10px]">
+                                    {renderOrthoBadge(session.orthophonisteNom)}
                                     <span
                                       className={`px-1.5 py-0.2 rounded font-semibold ${
                                         session.isConventionne
@@ -406,9 +535,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                       }`}
                                     >
                                       {session.isConventionne ? 'CNAM' : 'Privé'}
-                                    </span>
-                                    <span className="font-semibold text-slate-500">
-                                      {session.tarif} DT
                                     </span>
                                   </div>
 
@@ -506,7 +632,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
 
           <div className="space-y-2.5">
-            {STANDARD_45_SLOTS.map((slot) => {
+            {activeDaySlots.map((slot) => {
               const daySessions = filterByInsurance(
                 sessions.filter(
                   (s) => s.date === selectedDateISO && s.startTime === slot.start
@@ -558,7 +684,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               }`}
                             >
                               <div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <button
                                     onClick={() => onOpenPatientDetails(session.patientId)}
                                     className="text-sm font-bold text-slate-900 hover:underline flex items-center gap-1"
@@ -566,6 +692,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     <User className="w-3.5 h-3.5 text-slate-400" />
                                     <span>{session.patientNom}</span>
                                   </button>
+                                  {renderOrthoBadge(session.orthophonisteNom)}
                                   {renderStatusBadge(session.status)}
                                   <span
                                     className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -657,6 +784,194 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: MOIS (Planning Mensuel) */}
+      {viewMode === 'mois' && (
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-3.5 sm:p-6 space-y-4">
+          {/* Header & Stats du mois */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 shadow-2xs">
+                  <CalendarDays className="w-5 h-5 text-teal-600" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-extrabold text-slate-900 capitalize flex items-center gap-2">
+                    <span>Planning Mensuel • {selectedDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</span>
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
+                      Vue Mois
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Cabinet d'orthophonie Belgaied Maroua • Vue synthétique de l'activité rééducative
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick summary chips */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-700 font-bold border border-slate-200">
+                {monthTotal} séance{monthTotal > 1 ? 's' : ''} ce mois
+              </span>
+              <span className="px-2.5 py-1 rounded-xl bg-teal-50 text-teal-800 font-bold border border-teal-200">
+                {monthConv} CNAM
+              </span>
+              <span className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-800 font-bold border border-amber-200">
+                {monthTotal - monthConv} Privé
+              </span>
+              <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 font-extrabold border border-emerald-200">
+                {monthDone} faite{monthDone > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={() => onOpenSessionModal(undefined, selectedDateISO, '08:30')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 text-white hover:bg-teal-700 font-bold shadow-2xs active:scale-95 transition"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Séance</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Grille du calendrier mensuel */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[700px]">
+              {/* En-tête des jours de la semaine (Lundi -> Dimanche) */}
+              <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-black text-slate-600 uppercase tracking-wider">
+                {['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'].map((d, i) => (
+                  <div
+                    key={d}
+                    className={`py-1.5 rounded-xl ${
+                      i >= 5 ? 'bg-slate-50 text-slate-400' : 'bg-slate-100/70 text-slate-700'
+                    }`}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Cases des jours */}
+              <div className="grid grid-cols-7 gap-2">
+                {monthDays.map((day) => {
+                  const daySessions = filterByInsurance(
+                    sessions.filter((s) => s.date === day.dateISO)
+                  );
+                  const isSelected = day.dateISO === selectedDateISO;
+
+                  return (
+                    <div
+                      key={day.dateISO}
+                      className={`min-h-[115px] sm:min-h-[135px] p-2 rounded-2xl border flex flex-col justify-between transition-all group ${
+                        day.isCurrentMonth
+                          ? isSelected
+                            ? 'bg-teal-50/70 border-teal-500 shadow-xs ring-1 ring-teal-500'
+                            : 'bg-white border-slate-200/90 hover:border-teal-300 hover:shadow-xs'
+                          : 'bg-slate-50/60 border-slate-100 opacity-60'
+                      }`}
+                    >
+                      {/* Haut de la case : Numéro du jour & Badges */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span
+                            className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center ${
+                              day.isToday
+                                ? 'bg-teal-600 text-white shadow-2xs ring-2 ring-teal-200'
+                                : day.isCurrentMonth
+                                ? 'text-slate-800'
+                                : 'text-slate-400'
+                            }`}
+                          >
+                            {day.dayNumber}
+                          </span>
+
+                          <div className="flex items-center gap-1">
+                            {daySessions.length > 0 && (
+                              <span className="text-[10px] font-black px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                {daySessions.length}
+                              </span>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenSessionModal(undefined, day.dateISO, '08:30');
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-slate-400 hover:text-teal-700 hover:bg-teal-50 transition"
+                              title={`Ajouter une séance le ${day.dateISO}`}
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Liste compacte des séances */}
+                        <div className="space-y-1 overflow-hidden">
+                          {daySessions.slice(0, 3).map((s) => {
+                            const isOrthoMariem = (s.orthophonisteNom || '').toLowerCase().includes('mariem');
+                            const isOrthoStagiaire = (s.orthophonisteNom || '').toLowerCase().includes('stagiaire');
+                            const dotColor = isOrthoMariem ? 'bg-indigo-500' : isOrthoStagiaire ? 'bg-amber-500' : 'bg-teal-500';
+
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onOpenSessionModal(s);
+                                }}
+                                className={`w-full text-left text-[10px] font-medium p-1 rounded-lg border flex items-center justify-between gap-1 transition truncate ${
+                                  s.isConventionne
+                                    ? 'bg-teal-50/80 border-teal-200/70 text-teal-950 hover:bg-teal-100'
+                                    : 'bg-amber-50/80 border-amber-200/70 text-amber-950 hover:bg-amber-100'
+                                }`}
+                                title={`${s.startTime}-${s.endTime} : ${s.patientNom} (${s.orthophonisteNom || 'Maroua'})`}
+                              >
+                                <div className="flex items-center gap-1 min-w-0 truncate">
+                                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`}></span>
+                                  <span className="font-bold flex-shrink-0">{s.startTime}</span>
+                                  <span className="truncate">{s.patientNom}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+
+                          {daySessions.length > 3 && (
+                            <button
+                              onClick={() => {
+                                updateSelectedDate(day.date);
+                                setViewMode('jour');
+                              }}
+                              className="w-full text-center text-[10px] font-bold text-slate-500 hover:text-teal-700 hover:underline pt-0.5"
+                            >
+                              +{daySessions.length - 3} autre{daySessions.length - 3 > 1 ? 's' : ''}...
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bas de case : bouton pour basculer sur la journée */}
+                      <div className="pt-1 mt-1 border-t border-slate-100/80 flex items-center justify-between">
+                        <button
+                          onClick={() => {
+                            updateSelectedDate(day.date);
+                            setViewMode('jour');
+                          }}
+                          className="text-[10px] font-semibold text-slate-400 hover:text-teal-700 hover:underline transition"
+                        >
+                          Voir jour
+                        </button>
+                        {daySessions.some((s) => s.status === 'realisee') && (
+                          <span title="Séance(s) réalisée(s)">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

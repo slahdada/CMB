@@ -1,21 +1,139 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f766e"/>
-      <stop offset="100%" stop-color="#115e59"/>
+    <!-- Filtre ombre portée générale pour effet 3D app icon -->
+    <filter id="shadow-app" x="-10%" y="-10%" width="120%" height="120%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#021c1a" flood-opacity="0.65" />
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#021c1a" flood-opacity="0.35" />
+    </filter>
+
+    <!-- Filtre lueur interne et relief -->
+    <filter id="glow-core" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#011615" flood-opacity="0.45" />
+    </filter>
+
+    <!-- Dégradés de fond luxueux -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="35%" stop-color="#0d5e56" />
+      <stop offset="70%" stop-color="#083e39" />
+      <stop offset="100%" stop-color="#032220" />
     </linearGradient>
-    <linearGradient id="wave" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#2dd4bf"/>
-      <stop offset="100%" stop-color="#0f766e"/>
+
+    <!-- Reflet lumière spéculaire sur la surface (effet verre poli iOS / macOS) -->
+    <linearGradient id="specular-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28" />
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Anneau de bordure biseauté -->
+    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5eead4" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#14b8a6" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#042f2e" stop-opacity="0.8" />
+    </linearGradient>
+
+    <!-- Dégradé onde sonore & parole -->
+    <linearGradient id="wave-teal" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="50%" stop-color="#14b8a6" />
+      <stop offset="100%" stop-color="#5eead4" />
+    </linearGradient>
+
+    <!-- Dégradé or médical subtil (excellence et soin conventionné) -->
+    <linearGradient id="gold-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+
+    <!-- Dégradé pilier central en céramique médicale nacrée -->
+    <linearGradient id="pillar-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="40%" stop-color="#f0fdfa" />
+      <stop offset="100%" stop-color="#ccfbf1" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <path d="M120 220C120 148.2 180.9 90 256 90C331.1 90 392 148.2 392 220C392 291.8 331.1 350 256 350C236.4 350 217.7 346.1 200.7 339L140 370L154.5 318.5C133.3 292.5 120 258 120 220Z" fill="white"/>
-  <rect x="180" y="180" width="22" height="80" rx="11" fill="url(#wave)"/>
-  <rect x="220" y="150" width="22" height="140" rx="11" fill="#0f766e"/>
-  <rect x="260" y="130" width="22" height="180" rx="11" fill="url(#wave)"/>
-  <rect x="300" y="160" width="22" height="120" rx="11" fill="#0f766e"/>
-  <circle cx="390" cy="130" r="42" fill="#2dd4bf" stroke="white" stroke-width="6"/>
-  <rect x="382" y="106" width="16" height="48" rx="4" fill="white"/>
-  <rect x="366" y="122" width="48" height="16" rx="4" fill="white"/>
+
+  <!-- Fond principal en Squircle avec biseau premium -->
+  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" fill="url(#bg-grad)" filter="url(#shadow-app)" />
+  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" stroke="url(#rim-grad)" stroke-width="3" fill="none" />
+
+  <!-- Reflet spéculaire supérieur (Gloss d'icône d'application moderne) -->
+  <path d="M16 124 C16 64.7 64.7 16 124 16 L388 16 C447.3 16 496 64.7 496 124 L496 220 C360 200 160 210 16 260 Z" fill="url(#specular-gloss)" />
+
+  <!-- Lueur radiale centrale d'ambiance -->
+  <circle cx="256" cy="256" r="170" fill="#14b8a6" opacity="0.12" filter="url(#glow-core)" />
+
+  <!-- SYMBOLE CENTRAL : LA VOIX, LA RÉÉDUCATION, ET LE SOIN -->
+  <g filter="url(#soft-shadow)">
+
+    <!-- Ondes acoustiques latérales gauches (Harmonie du souffle & phonation) -->
+    <g opacity="0.95">
+      <!-- Onde extérieure gauche -->
+      <path d="M124 200 C110 234 110 278 124 312" stroke="url(#wave-teal)" stroke-width="12" stroke-linecap="round" opacity="0.45" />
+      <!-- Onde intermédiaire gauche -->
+      <path d="M156 176 C138 224 138 288 156 336" stroke="url(#wave-teal)" stroke-width="14" stroke-linecap="round" opacity="0.75" />
+      <!-- Onde intérieure gauche -->
+      <path d="M190 154 C168 214 168 298 190 358" stroke="url(#wave-teal)" stroke-width="16" stroke-linecap="round" />
+    </g>
+
+    <!-- Ondes acoustiques latérales droites (Écoute & Réception articulatoire) -->
+    <g opacity="0.95">
+      <!-- Onde extérieure droite -->
+      <path d="M388 200 C402 234 402 278 388 312" stroke="url(#wave-teal)" stroke-width="12" stroke-linecap="round" opacity="0.45" />
+      <!-- Onde intermédiaire droite -->
+      <path d="M356 176 C374 224 374 288 356 336" stroke="url(#wave-teal)" stroke-width="14" stroke-linecap="round" opacity="0.75" />
+      <!-- Onde intérieure droite -->
+      <path d="M322 154 C344 214 344 298 322 358" stroke="url(#wave-teal)" stroke-width="16" stroke-linecap="round" />
+    </g>
+
+    <!-- Corps central du symbole : Diapason vocal et Caducée thérapeutique unifié -->
+    <!-- Forme élégante en bulle de parole stylisée & ailes de la phonation -->
+    <path d="M256 108 
+             C294 108 322 136 322 174 
+             C322 220 286 260 272 284 
+             L272 376 
+             C272 384.8 264.8 392 256 392 
+             C247.2 392 240 384.8 240 376 
+             L240 284 
+             C226 260 190 220 190 174 
+             C190 136 218 108 256 108 Z" 
+          fill="url(#pillar-grad)" />
+
+    <!-- Cœur interne du timbre vocal : Anneau thérapeutique en résonance -->
+    <ellipse cx="256" cy="180" rx="34" ry="40" fill="#0f766e" />
+    <ellipse cx="256" cy="180" rx="22" ry="26" fill="#134e4a" />
+
+    <!-- Croix médicale stylisée dorée au centre de gravité de la rééducation -->
+    <g transform="translate(256, 180)">
+      <!-- Lueur dorée -->
+      <circle cx="0" cy="0" r="18" fill="url(#gold-accent)" opacity="0.9" />
+      <!-- Croix de soin blanche immaculée -->
+      <path d="M-4 -12 H4 V-4 H12 V4 H4 V12 H-4 V4 H-12 V-4 H-4 Z" fill="#ffffff" />
+    </g>
+
+    <!-- Lignes de vibration des cordes vocales intérieures -->
+    <path d="M256 226 L256 360" stroke="#0f766e" stroke-width="6" stroke-linecap="round" />
+    <circle cx="256" cy="374" r="7" fill="url(#gold-accent)" />
+
+    <!-- Petit diadème supérieur d'excellence médicale -->
+    <path d="M236 104 C248 96 264 96 276 104" stroke="url(#gold-accent)" stroke-width="4.5" stroke-linecap="round" fill="none" />
+    <circle cx="256" cy="94" r="5" fill="url(#gold-accent)" />
+  </g>
+
+  <!-- Signature institutionnelle discrète en bas de l'icône -->
+  <g opacity="0.85">
+    <text x="256" y="442" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#e2e8f0" letter-spacing="3.5">
+      BELGAIED MAROUA
+    </text>
+    <text x="256" y="464" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#5eead4" letter-spacing="4">
+      ORTHOPHONIE
+    </text>
+  </g>
 </svg>

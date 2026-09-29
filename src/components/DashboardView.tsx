@@ -24,6 +24,7 @@ import {
   getWeekDays, 
   formatFrenchDate 
 } from '../utils/dateUtils';
+import { DailyOrthoStats } from './DailyOrthoStats';
 
 interface DashboardViewProps {
   sessions: Session[];
@@ -237,6 +238,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SECTION : ACTIVITÉ DU JOUR PAR ORTHOPHONISTE */}
+      <DailyOrthoStats 
+        sessions={sessions} 
+        settings={settings} 
+        initialDate={formatDateISO(currentDate)} 
+      />
 
       {/* SECTION 1: STATS PAR SEMAINE (AUTOMATIQUE) */}
       <div className="space-y-4">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Share2, PlusSquare, X, CheckCircle, Smartphone } from 'lucide-react';
+import { CabinetLogo } from './CabinetLogo';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface Props {
@@ -71,9 +72,7 @@ export const PWAInstallButton: React.FC<Props> = ({ className = '', variant = 'b
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center mb-4">
-                <Smartphone className="w-6 h-6" />
-              </div>
+              <CabinetLogo size="lg" className="mb-4" />
 
               <h3 className="text-base font-bold text-slate-900">
                 Installer l'App Cabinet Orthophonie
