@@ -59,13 +59,42 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  // Local state for Nombre de séances prescrites (dynamique et modifiable sur place)
+  const [prescribedCount, setPrescribedCount] = useState<number>(
+    patient?.nombreSeancesPrescrites || 30
+  );
+  const [isEditingPrescription, setIsEditingPrescription] = useState<boolean>(false);
+  const [prescriptionSuccess, setPrescriptionSuccess] = useState<boolean>(false);
+
   // Sync state whenever the selected patient changes
   useEffect(() => {
     if (patient) {
       setNotesMedicales(patient.notesMedicales ?? patient.notes ?? '');
+      setPrescribedCount(patient.nombreSeancesPrescrites || 30);
       setSaveSuccess(false);
+      setIsEditingPrescription(false);
+      setPrescriptionSuccess(false);
     }
-  }, [patient?.id, patient?.notesMedicales, patient?.notes]);
+  }, [patient?.id, patient?.notesMedicales, patient?.notes, patient?.nombreSeancesPrescrites]);
+
+  // Handler to update prescribed sessions directly
+  const handleUpdatePrescribed = (newVal: number) => {
+    if (!onSavePatient || !patient) return;
+    const target = Math.max(1, newVal);
+    setPrescribedCount(target);
+
+    const updatedPatient: Patient = {
+      ...patient,
+      nombreSeancesPrescrites: target,
+    };
+
+    onSavePatient(updatedPatient);
+    setPrescriptionSuccess(true);
+    setIsEditingPrescription(false);
+    setTimeout(() => {
+      setPrescriptionSuccess(false);
+    }, 3000);
+  };
 
   // Early return after all hooks have run
   if (!isOpen || !patientId || !patient) return null;
@@ -78,6 +107,15 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
   const realisees = patientSessions.filter((s) => s.status === 'realisee').length;
   const planifiees = patientSessions.filter((s) => s.status === 'planifiee').length;
   const annulees = patientSessions.filter((s) => s.status === 'annulee' || s.status === 'absent').length;
+
+  // Calculs synchronisés avec le protocole de rééducation
+  const totalProgrammes = realisees + planifiees; // Séances engagées (réalisées + au planning)
+  const resteAPlanifier = Math.max(0, prescribedCount - totalProgrammes);
+  const resteARealiser = Math.max(0, prescribedCount - realisees);
+
+  const pctRealisees = prescribedCount > 0 ? Math.min(100, Math.round((realisees / prescribedCount) * 100)) : 0;
+  const pctPlanifiees = prescribedCount > 0 ? Math.min(100 - pctRealisees, Math.round((planifiees / prescribedCount) * 100)) : 0;
+  const pctTotalEngage = Math.min(100, pctRealisees + pctPlanifiees);
 
   const waNum = cleanWhatsAppNumber(patient.telephone);
 
@@ -303,23 +341,230 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Statistics summary */}
-          <div className="grid grid-cols-4 gap-2 text-center">
-            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Total Séances</span>
-              <p className="text-xl font-black text-slate-800 mt-0.5">{totalSessions}</p>
+          {/* Protocole de rééducation : Nombre de séances prescrites & Progression Globale */}
+          <div className="bg-gradient-to-br from-teal-50/70 via-white to-emerald-50/50 p-4 rounded-2xl border border-teal-200/90 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold shadow-2xs">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                    <span>Protocole de rééducation</span>
+                    <span className="text-xs font-black text-teal-800 bg-teal-100/90 px-2.5 py-0.5 rounded-full border border-teal-300/60">
+                      {prescribedCount} séances prescrites
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Objectif fixé par prescription médicale ou accord CNAM
+                  </p>
+                </div>
+              </div>
+
+              {/* Bouton modifier / notification de succès */}
+              <div className="flex items-center gap-2">
+                {prescriptionSuccess && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-xl animate-in fade-in duration-200">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Synchronisé ({prescribedCount} séances)</span>
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPrescription(!isEditingPrescription)}
+                  className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    isEditingPrescription
+                      ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                      : 'bg-white border border-teal-300 text-teal-800 hover:bg-teal-50 shadow-2xs'
+                  }`}
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-teal-600" />
+                  <span>{isEditingPrescription ? 'Fermer' : 'Modifier le nombre'}</span>
+                </button>
+              </div>
             </div>
-            <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
-              <span className="text-[10px] uppercase font-bold text-emerald-700">Réalisées</span>
+
+            {/* Progression visuelle synchronisée (Séances faites + Séances au planning) */}
+            <div className="space-y-2 pt-1">
+              <div className="flex flex-wrap items-center justify-between text-xs font-bold gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-800">
+                    Total au planning : <strong className="text-teal-900 font-extrabold">{totalProgrammes}</strong> sur {prescribedCount}
+                  </span>
+                  <span className="text-[11px] font-bold text-teal-700 bg-teal-100/70 px-2 py-0.5 rounded-full">
+                    {pctTotalEngage}%
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-[11px] flex-wrap">
+                  <span className="text-emerald-700 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    {realisees} faite{realisees > 1 ? 's' : ''} ({pctRealisees}%)
+                  </span>
+                  <span className="text-sky-700 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                    {planifiees} prévue{planifiees > 1 ? 's' : ''} ({pctPlanifiees}%)
+                  </span>
+                  <span className="text-amber-800 font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                    Reste à planifier : {resteAPlanifier}
+                  </span>
+                </div>
+              </div>
+
+              {/* Barre de progression multi-segments synchronisée */}
+              <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200 flex">
+                {/* Segment Réalisées (Vert émeraude) */}
+                {pctRealisees > 0 && (
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-600 to-teal-500 rounded-l-full transition-all duration-500"
+                    style={{ width: `${pctRealisees}%` }}
+                    title={`${realisees} séances réalisées (${pctRealisees}%)`}
+                  />
+                )}
+                {/* Segment Prévues (Bleu ciel / Sky) */}
+                {pctPlanifiees > 0 && (
+                  <div
+                    className={`h-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-500 ${
+                      pctRealisees === 0 ? 'rounded-l-full' : ''
+                    } ${pctTotalEngage >= 100 ? 'rounded-r-full' : ''}`}
+                    style={{ width: `${pctPlanifiees}%` }}
+                    title={`${planifiees} séances prévues (${pctPlanifiees}%)`}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Éditeur en ligne du nombre de séances (quand actif) */}
+            {isEditingPrescription && (
+              <div className="pt-2 border-t border-teal-100 bg-white/95 p-3.5 rounded-xl border border-slate-200/80 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800">
+                    Ajuster le nombre total de séances prescrites :
+                  </span>
+                  <span className="text-[10px] text-slate-400">Modifiable selon accord CNAM / protocole</span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 flex items-center shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePrescribed(prescribedCount - 5)}
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-l-xl text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                      title="Diminuer de 5"
+                    >
+                      -5
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePrescribed(prescribedCount - 1)}
+                      className="px-2.5 py-1.5 bg-slate-50 border-y border-r border-slate-200 text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                      title="Diminuer de 1"
+                    >
+                      -1
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="300"
+                      value={prescribedCount}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value);
+                        if (!isNaN(v) && v > 0) handleUpdatePrescribed(v);
+                      }}
+                      className="w-full text-center py-1.5 text-sm font-black text-slate-900 border-y border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePrescribed(prescribedCount + 1)}
+                      className="px-2.5 py-1.5 bg-slate-50 border-y border-l border-slate-200 text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                      title="Ajouter 1"
+                    >
+                      +1
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdatePrescribed(prescribedCount + 5)}
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-r-xl text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                      title="Ajouter 5"
+                    >
+                      +5
+                    </button>
+                  </div>
+                </div>
+
+                {/* Presets rapides */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-1">Présélections :</span>
+                  {[10, 15, 20, 25, 30, 40, 50, 60, 80].map((num) => (
+                    <button
+                      type="button"
+                      key={num}
+                      onClick={() => handleUpdatePrescribed(num)}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-bold transition ${
+                        prescribedCount === num
+                          ? 'bg-teal-600 text-white shadow-2xs'
+                          : 'bg-slate-50 text-slate-600 border border-slate-200 hover:border-teal-400 hover:text-teal-700'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Les 4 indicateurs clés 100% synchronisés */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+            {/* Box 1 : Total Prescrit / Accordé */}
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+              <span className="text-[10px] uppercase font-bold text-slate-500 block">Prescription</span>
+              <p className="text-xl font-black text-slate-900 mt-0.5">{prescribedCount}</p>
+              <span className="text-[10px] text-slate-500 font-semibold block mt-0.5">
+                {totalProgrammes} au planning
+              </span>
+            </div>
+
+            {/* Box 2 : Réalisées (Faites) */}
+            <div className="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200/80">
+              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Réalisées</span>
               <p className="text-xl font-black text-emerald-900 mt-0.5">{realisees}</p>
+              <span className="text-[10px] text-emerald-700 font-bold block mt-0.5">
+                {pctRealisees}% de l'objectif
+              </span>
             </div>
-            <div className="bg-sky-50 p-2.5 rounded-xl border border-sky-100">
-              <span className="text-[10px] uppercase font-bold text-sky-700">Prévues</span>
+
+            {/* Box 3 : Prévues / Planifiées */}
+            <div className="bg-sky-50/80 p-3 rounded-2xl border border-sky-200/80">
+              <span className="text-[10px] uppercase font-bold text-sky-800 block">Prévues</span>
               <p className="text-xl font-black text-sky-900 mt-0.5">{planifiees}</p>
+              <span className="text-[10px] text-sky-700 font-bold block mt-0.5">
+                {pctPlanifiees}% au planning
+              </span>
             </div>
-            <div className="bg-rose-50 p-2.5 rounded-xl border border-rose-100">
-              <span className="text-[10px] uppercase font-bold text-rose-700">Annulées</span>
-              <p className="text-xl font-black text-rose-900 mt-0.5">{annulees}</p>
+
+            {/* Box 4 : Reste à planifier */}
+            <div className={`p-3 rounded-2xl border ${
+              resteAPlanifier === 0
+                ? 'bg-teal-50/80 border-teal-200'
+                : 'bg-amber-50/80 border-amber-200/80'
+            }`}>
+              <span className={`text-[10px] uppercase font-bold block ${
+                resteAPlanifier === 0 ? 'text-teal-800' : 'text-amber-800'
+              }`}>
+                Reste à planifier
+              </span>
+              <p className={`text-xl font-black mt-0.5 ${
+                resteAPlanifier === 0 ? 'text-teal-900' : 'text-amber-950'
+              }`}>
+                {resteAPlanifier}
+              </p>
+              <span className={`text-[10px] font-bold block mt-0.5 ${
+                resteAPlanifier === 0 ? 'text-teal-700' : 'text-amber-700'
+              }`}>
+                {resteAPlanifier === 0 ? 'Quota atteint !' : `sur ${prescribedCount}`}
+              </span>
             </div>
           </div>
 
@@ -335,10 +580,10 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
                   onClose();
                   onOpenNewSessionForPatient(patient);
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition shadow-2xs"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Nouvelle séance</span>
+                <span>Nouvelle séance</span>
               </button>
             </div>
 

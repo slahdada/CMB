@@ -1,139 +1,263 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
   <defs>
-    <!-- Filtre ombre portée générale pour effet 3D app icon -->
-    <filter id="shadow-app" x="-10%" y="-10%" width="120%" height="120%" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#021c1a" flood-opacity="0.65" />
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#021c1a" flood-opacity="0.35" />
+    <!-- Ombre et Lueur 3D pour le Blason -->
+    <filter id="shield-glow" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#02151b" flood-opacity="0.8" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#00f2fe" flood-opacity="0.25" />
     </filter>
 
-    <!-- Filtre lueur interne et relief -->
-    <filter id="glow-core" x="-20%" y="-20%" width="140%" height="140%" filterUnits="userSpaceOnUse">
-      <feGaussianBlur stdDeviation="6" result="blur" />
+    <filter id="soft-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
       <feComposite in="SourceGraphic" in2="blur" operator="over" />
     </filter>
 
-    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#011615" flood-opacity="0.45" />
+    <filter id="inner-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.5" />
     </filter>
 
-    <!-- Dégradés de fond luxueux -->
-    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f766e" />
-      <stop offset="35%" stop-color="#0d5e56" />
-      <stop offset="70%" stop-color="#083e39" />
-      <stop offset="100%" stop-color="#032220" />
+    <!-- Dégradé de Fond Général Sombre & Médical -->
+    <linearGradient id="bg-canvas" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07222c" />
+      <stop offset="50%" stop-color="#09313e" />
+      <stop offset="100%" stop-color="#04151c" />
     </linearGradient>
 
-    <!-- Reflet lumière spéculaire sur la surface (effet verre poli iOS / macOS) -->
-    <linearGradient id="specular-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28" />
-      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.08" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    <!-- Dégradé du Blason / Shield -->
+    <linearGradient id="shield-body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#145266" />
+      <stop offset="35%" stop-color="#0f3c4c" />
+      <stop offset="80%" stop-color="#0a2a35" />
+      <stop offset="100%" stop-color="#061b22" />
     </linearGradient>
 
-    <!-- Anneau de bordure biseauté -->
-    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#5eead4" stop-opacity="0.6" />
-      <stop offset="50%" stop-color="#14b8a6" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#042f2e" stop-opacity="0.8" />
+    <!-- Dégradé de la bordure lumineuse du Blason -->
+    <linearGradient id="shield-border" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#67e8f9" />
+      <stop offset="30%" stop-color="#38bdf8" />
+      <stop offset="70%" stop-color="#2dd4bf" />
+      <stop offset="100%" stop-color="#0f766e" />
     </linearGradient>
 
-    <!-- Dégradé onde sonore & parole -->
-    <linearGradient id="wave-teal" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#0d9488" />
-      <stop offset="50%" stop-color="#14b8a6" />
-      <stop offset="100%" stop-color="#5eead4" />
+    <!-- Dégradé Émeraude & Menthe pour les Feuilles & la Parole -->
+    <linearGradient id="mint-glow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2dd4bf" />
+      <stop offset="50%" stop-color="#5eead4" />
+      <stop offset="100%" stop-color="#a7f3d0" />
     </linearGradient>
 
-    <!-- Dégradé or médical subtil (excellence et soin conventionné) -->
-    <linearGradient id="gold-accent" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#fef08a" />
-      <stop offset="50%" stop-color="#facc15" />
-      <stop offset="100%" stop-color="#ca8a04" />
+    <!-- Dégradé Cyan pour le Monogramme MB & les Ondes -->
+    <linearGradient id="cyan-vocal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#bae6fd" />
+      <stop offset="50%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0ea5e9" />
     </linearGradient>
 
-    <!-- Dégradé pilier central en céramique médicale nacrée -->
-    <linearGradient id="pillar-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+    <!-- Dégradé Blanc Nacré pour les Bulles & Têtes -->
+    <linearGradient id="pearl-white" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="40%" stop-color="#f0fdfa" />
-      <stop offset="100%" stop-color="#ccfbf1" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+
+    <!-- Reflet brillant supérieur du Blason -->
+    <linearGradient id="shield-gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
     </linearGradient>
   </defs>
 
-  <!-- Fond principal en Squircle avec biseau premium -->
-  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" fill="url(#bg-grad)" filter="url(#shadow-app)" />
-  <rect x="16" y="16" width="480" height="480" rx="108" ry="108" stroke="url(#rim-grad)" stroke-width="3" fill="none" />
+  <!-- Fond Général de l'Icône avec coins arrondis style App Icon -->
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#bg-canvas)" />
 
-  <!-- Reflet spéculaire supérieur (Gloss d'icône d'application moderne) -->
-  <path d="M16 124 C16 64.7 64.7 16 124 16 L388 16 C447.3 16 496 64.7 496 124 L496 220 C360 200 160 210 16 260 Z" fill="url(#specular-gloss)" />
+  <!-- Lueur diffuse d'ambiance derrière le blason -->
+  <circle cx="256" cy="200" r="150" fill="#0ea5e9" opacity="0.15" filter="url(#soft-glow)" />
 
-  <!-- Lueur radiale centrale d'ambiance -->
-  <circle cx="256" cy="256" r="170" fill="#14b8a6" opacity="0.12" filter="url(#glow-core)" />
+  <!-- ==================== LE BLASON / ÉCUSSON ==================== -->
+  <g filter="url(#shield-glow)">
+    <!-- Contour Extérieur Lumineux du Blason -->
+    <path d="M256 36 
+             C330 68 410 52 422 62 
+             C430 150 436 264 256 394 
+             C76 264 82 150 90 62 
+             C102 52 182 68 256 36 Z" 
+          fill="url(#shield-border)" />
 
-  <!-- SYMBOLE CENTRAL : LA VOIX, LA RÉÉDUCATION, ET LE SOIN -->
-  <g filter="url(#soft-shadow)">
+    <!-- Corps Intérieur du Blason -->
+    <path d="M256 46 
+             C325 76 398 62 408 72 
+             C415 152 420 254 256 376 
+             C92 254 97 152 104 72 
+             C114 62 187 76 256 46 Z" 
+          fill="url(#shield-body)" />
 
-    <!-- Ondes acoustiques latérales gauches (Harmonie du souffle & phonation) -->
-    <g opacity="0.95">
-      <!-- Onde extérieure gauche -->
-      <path d="M124 200 C110 234 110 278 124 312" stroke="url(#wave-teal)" stroke-width="12" stroke-linecap="round" opacity="0.45" />
-      <!-- Onde intermédiaire gauche -->
-      <path d="M156 176 C138 224 138 288 156 336" stroke="url(#wave-teal)" stroke-width="14" stroke-linecap="round" opacity="0.75" />
-      <!-- Onde intérieure gauche -->
-      <path d="M190 154 C168 214 168 298 190 358" stroke="url(#wave-teal)" stroke-width="16" stroke-linecap="round" />
-    </g>
+    <!-- Reflet Verre Supérieur (Gloss) -->
+    <path d="M256 46 
+             C325 76 398 62 408 72 
+             C412 110 414 160 380 200 
+             C300 170 200 180 132 200 
+             C100 160 102 110 104 72 
+             C114 62 187 76 256 46 Z" 
+          fill="url(#shield-gloss)" />
 
-    <!-- Ondes acoustiques latérales droites (Écoute & Réception articulatoire) -->
-    <g opacity="0.95">
-      <!-- Onde extérieure droite -->
-      <path d="M388 200 C402 234 402 278 388 312" stroke="url(#wave-teal)" stroke-width="12" stroke-linecap="round" opacity="0.45" />
-      <!-- Onde intermédiaire droite -->
-      <path d="M356 176 C374 224 374 288 356 336" stroke="url(#wave-teal)" stroke-width="14" stroke-linecap="round" opacity="0.75" />
-      <!-- Onde intérieure droite -->
-      <path d="M322 154 C344 214 344 298 322 358" stroke="url(#wave-teal)" stroke-width="16" stroke-linecap="round" />
-    </g>
-
-    <!-- Corps central du symbole : Diapason vocal et Caducée thérapeutique unifié -->
-    <!-- Forme élégante en bulle de parole stylisée & ailes de la phonation -->
-    <path d="M256 108 
-             C294 108 322 136 322 174 
-             C322 220 286 260 272 284 
-             L272 376 
-             C272 384.8 264.8 392 256 392 
-             C247.2 392 240 384.8 240 376 
-             L240 284 
-             C226 260 190 220 190 174 
-             C190 136 218 108 256 108 Z" 
-          fill="url(#pillar-grad)" />
-
-    <!-- Cœur interne du timbre vocal : Anneau thérapeutique en résonance -->
-    <ellipse cx="256" cy="180" rx="34" ry="40" fill="#0f766e" />
-    <ellipse cx="256" cy="180" rx="22" ry="26" fill="#134e4a" />
-
-    <!-- Croix médicale stylisée dorée au centre de gravité de la rééducation -->
-    <g transform="translate(256, 180)">
-      <!-- Lueur dorée -->
-      <circle cx="0" cy="0" r="18" fill="url(#gold-accent)" opacity="0.9" />
-      <!-- Croix de soin blanche immaculée -->
-      <path d="M-4 -12 H4 V-4 H12 V4 H4 V12 H-4 V4 H-12 V-4 H-4 Z" fill="#ffffff" />
-    </g>
-
-    <!-- Lignes de vibration des cordes vocales intérieures -->
-    <path d="M256 226 L256 360" stroke="#0f766e" stroke-width="6" stroke-linecap="round" />
-    <circle cx="256" cy="374" r="7" fill="url(#gold-accent)" />
-
-    <!-- Petit diadème supérieur d'excellence médicale -->
-    <path d="M236 104 C248 96 264 96 276 104" stroke="url(#gold-accent)" stroke-width="4.5" stroke-linecap="round" fill="none" />
-    <circle cx="256" cy="94" r="5" fill="url(#gold-accent)" />
+    <!-- Bordure intérieure fine en néon cyan -->
+    <path d="M256 56 
+             C320 84 388 72 396 80 
+             C402 152 406 244 256 358 
+             C106 244 110 152 116 80 
+             C124 72 192 84 256 56 Z" 
+          fill="none" stroke="#38bdf8" stroke-width="2" opacity="0.4" />
   </g>
 
-  <!-- Signature institutionnelle discrète en bas de l'icône -->
-  <g opacity="0.85">
-    <text x="256" y="442" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#e2e8f0" letter-spacing="3.5">
-      BELGAIED MAROUA
+  <!-- ==================== SYMBOLES INTERNES DU BLASON ==================== -->
+  <g filter="url(#inner-shadow)">
+    
+    <!-- 1. ARCS CIRCULAIRES DYNAMIQUES & TOURBILLON DE COMMUNICATION -->
+    <!-- Arc externe inférieur -->
+    <path d="M142 200 
+             C130 260 170 320 236 332 
+             C290 342 344 316 366 268" 
+          stroke="url(#shield-border)" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.85" />
+
+    <!-- Arc intermédiaire enveloppant -->
+    <path d="M152 185 
+             C142 235 168 290 220 308 
+             C272 326 330 300 354 250" 
+          stroke="url(#mint-glow)" stroke-width="6" stroke-linecap="round" fill="none" />
+
+    <!-- Arc intérieur gracieux montant vers la branche -->
+    <path d="M170 220 
+             C165 260 190 295 235 300 
+             C290 305 335 270 348 205
+             C356 160 345 115 350 95" 
+          stroke="url(#mint-glow)" stroke-width="7" stroke-linecap="round" fill="none" />
+
+    <!-- 2. BULLES DE PAROLE (ORTHOPHONIE / DIALOGUE) EN HAUT À GAUCHE -->
+    <!-- Bulle secondaire arrière -->
+    <path d="M190 120 
+             C206 120 218 130 218 142 
+             C218 148 214 154 208 158 
+             L212 168 L200 162 
+             C196 163 193 164 190 164 
+             C174 164 162 154 162 142 
+             C162 130 174 120 190 120 Z" 
+          fill="#38bdf8" opacity="0.75" />
+
+    <!-- Bulle principale avant avec points de dialogue (...) -->
+    <g>
+      <path d="M165 102 
+               C186 102 202 115 202 132 
+               C202 140 198 148 190 153 
+               L195 166 L181 159 
+               C176 161 170 162 165 162 
+               C144 162 128 149 128 132 
+               C128 115 144 102 165 102 Z" 
+            fill="url(#pearl-white)" />
+      
+      <!-- 3 petits points de parole dans la bulle -->
+      <circle cx="152" cy="132" r="3.2" fill="#0f766e" />
+      <circle cx="165" cy="132" r="3.2" fill="#0f766e" />
+      <circle cx="178" cy="132" r="3.2" fill="#0f766e" />
+    </g>
+
+    <!-- 3. BRANCHE VÉGÉTALE & FEUILLES D'ÉPANOUISSEMENT (À DROITE) -->
+    <g fill="url(#mint-glow)">
+      <!-- Feuille sommitale -->
+      <path d="M350 95 C355 70 375 72 375 72 C375 72 370 95 350 95 Z" />
+      <path d="M350 95 C370 88 385 100 385 100 C385 100 365 110 350 95 Z" />
+
+      <!-- Feuilles intermédiaires -->
+      <path d="M352 125 C376 112 396 128 396 128 C396 128 372 142 352 125 Z" />
+      <path d="M344 135 C320 120 310 135 310 135 C310 135 328 148 344 135 Z" />
+
+      <!-- Feuilles inférieures -->
+      <path d="M355 160 C382 152 400 172 400 172 C400 172 374 184 355 160 Z" />
+      <path d="M346 172 C324 158 316 175 316 175 C316 175 332 188 346 172 Z" />
+      <path d="M354 205 C380 200 392 222 392 222 C392 222 368 230 354 205 Z" />
+    </g>
+
+    <!-- 4. MONOGRAMME CENTRAL (MB) & PERSONNAGE ÉMETTEUR / RÉCEPTEUR -->
+    <!-- Tête du personnage de gauche (Émetteur / Thérapeute / Patient) -->
+    <circle cx="206" cy="180" r="13" fill="url(#pearl-white)" />
+
+    <!-- Corps du personnage de gauche (formant la jambe gauche du 'M') -->
+    <path d="M198 200 
+             C198 198 214 198 214 200 
+             L214 265 
+             L200 265 
+             L200 226 
+             L188 238 
+             L188 265 
+             L176 265 
+             L176 218 
+             C176 206 186 200 198 200 Z" 
+          fill="url(#cyan-vocal)" />
+
+    <!-- Bras tendu de communication / transmission -->
+    <path d="M210 216 
+             C218 216 230 224 236 235 
+             L228 240 
+             C222 232 216 226 208 224 Z" 
+          fill="url(#cyan-vocal)" />
+
+    <!-- ONDES ACOUSTIQUES / VOCALES ENTRE LES DEUX SUJETS -->
+    <g stroke="url(#mint-glow)" stroke-linecap="round" fill="none">
+      <!-- Onde 1 -->
+      <path d="M236 222 C242 228 242 238 236 244" stroke-width="4.5" />
+      <!-- Onde 2 -->
+      <path d="M244 216 C253 225 253 241 244 250" stroke-width="4.5" />
+      <!-- Onde 3 -->
+      <path d="M252 210 C264 222 264 244 252 256" stroke-width="4.5" />
+    </g>
+
+    <!-- Tête du personnage de droite (formant la boucle supérieure du 'B' / Récepteur) -->
+    <circle cx="282" cy="178" r="14" fill="url(#pearl-white)" />
+
+    <!-- LETTRE 'B' MAJUSCULE STYLISÉE & CORPS RÉCEPTEUR -->
+    <!-- Forme intégrée du 'B' moderne en dégradé émeraude/cyan -->
+    <path d="M266 202 
+             L290 202 
+             C305 202 316 212 316 226 
+             C316 236 309 243 300 246 
+             C312 249 320 258 320 272 
+             C320 288 306 298 288 298 
+             L266 298 
+             Z 
+             M280 216 
+             L280 240 
+             L288 240 
+             C296 240 302 235 302 228 
+             C302 221 296 216 288 216 
+             Z 
+             M280 252 
+             L280 284 
+             L290 284 
+             C299 284 306 278 306 268 
+             C306 258 299 252 290 252 
+             Z" 
+          fill="url(#mint-glow)" />
+  </g>
+
+  <!-- ==================== TYPOGRAPHIE OFFICIELLE AU BAS ==================== -->
+  <g text-anchor="middle">
+    <!-- Ligne 1 : CABINET D'ORTHOPHONIE -->
+    <text x="256" y="440" 
+          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="19" 
+          font-weight="700" 
+          letter-spacing="2.5" 
+          fill="#d1fae5">
+      CABINET D'ORTHOPHONIE
     </text>
-    <text x="256" y="464" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#5eead4" letter-spacing="4">
-      ORTHOPHONIE
+
+    <!-- Ligne 2 : MAROUA BELGAIED (Gros & Lumineux) -->
+    <text x="256" y="482" 
+          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="31" 
+          font-weight="900" 
+          letter-spacing="1.2" 
+          fill="#ffffff"
+          filter="url(#soft-glow)">
+      MAROUA BELGAIED
     </text>
   </g>
 </svg>

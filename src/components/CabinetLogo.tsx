@@ -19,11 +19,11 @@ export const CabinetLogo: React.FC<CabinetLogoProps> = ({
   };
 
   return (
-    <div className={`relative flex-shrink-0 ${sizeMap[size]} ${className} group/logo`}>
+    <div className={`relative flex-shrink-0 ${sizeMap[size]} ${className} group/logo select-none`}>
       <img
         src="/icon.svg"
-        alt="Cabinet d'orthophonie Belgaied Maroua"
-        className="w-full h-full object-cover rounded-inherit shadow-md ring-1 ring-slate-900/10 group-hover/logo:scale-105 transition-transform duration-200"
+        alt="Cabinet d'orthophonie Maroua Belgaied"
+        className="w-full h-full object-cover rounded-2xl shadow-md ring-1.5 ring-teal-500/30 group-hover/logo:scale-105 group-hover/logo:ring-teal-400 transition-all duration-200"
       />
       {showBadge && (
         <span

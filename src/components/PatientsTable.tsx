@@ -361,18 +361,39 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
                       )}
                     </td>
 
-                    {/* Sessions count */}
+                    {/* Sessions count with prescribed target */}
                     <td className="py-3.5 px-4 text-center">
-                      <div className="inline-flex flex-col items-center">
-                        <span className="text-sm font-black text-slate-800">
-                          {stats.total}
-                        </span>
-                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-                          <span className="text-emerald-700 font-semibold">{stats.realisees} faîtes</span>
-                          <span>•</span>
-                          <span className="text-sky-700 font-semibold">{stats.planifiees} prév.</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const prescribed = patient.nombreSeancesPrescrites || 30;
+                        const pct = Math.min(100, Math.round((stats.realisees / prescribed) * 100));
+                        return (
+                          <div className="inline-flex flex-col items-center min-w-[120px]">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-black text-slate-800">
+                                {stats.realisees}
+                              </span>
+                              <span className="text-xs text-slate-400 font-bold">/ {prescribed}</span>
+                              <span className="text-[10px] font-extrabold text-teal-700 bg-teal-50 px-1.5 py-0.2 rounded">
+                                {pct}%
+                              </span>
+                            </div>
+                            
+                            {/* Mini progress bar */}
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1 border border-slate-200/60">
+                              <div
+                                className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full"
+                                style={{ width: `${Math.max(4, pct)}%` }}
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium mt-0.5">
+                              <span className="text-emerald-700 font-semibold">{stats.realisees} faites</span>
+                              <span>•</span>
+                              <span className="text-sky-700 font-semibold">{stats.planifiees} prév.</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Actions */}
@@ -481,11 +502,26 @@ export const PatientsTable: React.FC<PatientsTableProps> = ({
                     <span className="text-slate-400">Pathologie :</span>
                     <span className="font-semibold text-slate-800">{patient.pathologie}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Séances 45 min :</span>
-                    <span className="font-semibold text-teal-700">
-                      {stats.total} total ({stats.realisees} faites, {stats.planifiees} prévues)
-                    </span>
+                  <div className="pt-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-400">Protocole de séances :</span>
+                      <span className="font-extrabold text-teal-800">
+                        {stats.realisees} / {patient.nombreSeancesPrescrites || 30} réalisées ({Math.min(100, Math.round((stats.realisees / (patient.nombreSeancesPrescrites || 30)) * 100))}%)
+                      </span>
+                    </div>
+                    {/* Mini progress bar on mobile */}
+                    <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden mt-1.5">
+                      <div
+                        className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full"
+                        style={{
+                          width: `${Math.min(100, Math.max(4, Math.round((stats.realisees / (patient.nombreSeancesPrescrites || 30)) * 100)))}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
+                      <span>Reste : {Math.max(0, (patient.nombreSeancesPrescrites || 30) - stats.realisees)} séances</span>
+                      <span>{stats.planifiees} planifiée(s)</span>
+                    </div>
                   </div>
                 </div>
 

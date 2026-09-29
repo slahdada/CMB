@@ -14,7 +14,6 @@ import { PatientModal } from './components/PatientModal';
 import { PatientDetailsModal } from './components/PatientDetailsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { PhoneCallModal } from './components/PhoneCallModal';
-import { FloatingCallButton } from './components/FloatingCallButton';
 import { DataImportModal } from './components/DataImportModal';
 import { triggerExportPDF } from './utils/pdfExport';
 import { Patient, Session, SessionStatus, CabinetSettings } from './types';
@@ -318,7 +317,6 @@ export default function App() {
         }}
         onOpenNewSession={() => handleOpenNewSession()}
         onOpenNewPatient={handleOpenNewPatient}
-        onOpenPhoneModal={() => setPhoneCallModalOpen(true)}
         onExportPDF={handleExportPDF}
         onOpenImportModal={() => setImportModalOpen(true)}
         totalPatientsCount={patients.length}
@@ -327,7 +325,7 @@ export default function App() {
       />
 
       {/* App Body Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
+      <main className="flex-1 max-w-[1780px] 2xl:max-w-[1920px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 space-y-4">
         {/* Notification de succès d'importation */}
         {importNotification && (
           <div className="bg-emerald-600 text-white p-3 sm:p-4 rounded-2xl shadow-md text-xs sm:text-sm font-bold flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -422,8 +420,8 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200/80 bg-white/70 py-4 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+      <footer className="mt-auto border-t border-slate-200/80 bg-white/70 py-3 text-xs text-slate-500">
+        <div className="max-w-[1780px] 2xl:max-w-[1920px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-700">{settings.nomCabinet}</span>
             <span>•</span>
@@ -522,12 +520,6 @@ export default function App() {
         onImportPatients={handleImportPatients}
         onImportSessions={handleImportSessions}
         onImportAll={handleImportAll}
-      />
-
-      {/* Bouton d'appel flottant toujours accessible */}
-      <FloatingCallButton
-        onOpenCallModal={() => setPhoneCallModalOpen(true)}
-        cabinetPhone={settings.telephoneCabinet}
       />
     </div>
   );

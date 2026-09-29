@@ -16,6 +16,7 @@ export interface Patient {
   dateNaissance?: string; // YYYY-MM-DD
   age?: number;
   pathologie: string; // Ex: "Retard de langage", "Bégaiement", "Dyslexie", "Trouble articulatoire"
+  nombreSeancesPrescrites?: number; // Nombre de séances prescrites / accordées (ex: 10, 20, 30, 50, etc.)
   notes?: string;
   notesMedicales?: string; // Observations cliniques ou remarques de suivi à long terme
   notesMedicalesDate?: string; // Date de dernière mise à jour des notes médicales

@@ -52,8 +52,40 @@ export const PatientModal: React.FC<PatientModalProps> = ({
   const [dateNaissance, setDateNaissance] = useState(patientToEdit?.dateNaissance || '');
   const [age, setAge] = useState<number | undefined>(patientToEdit?.age);
   const [pathologie, setPathologie] = useState(patientToEdit?.pathologie || '');
+  const [nombreSeancesPrescrites, setNombreSeancesPrescrites] = useState<number>(
+    patientToEdit?.nombreSeancesPrescrites || 30
+  );
   const [notes, setNotes] = useState(patientToEdit?.notes || '');
   const [status, setStatus] = useState<'actif' | 'en_attente' | 'termine'>(patientToEdit?.status || 'actif');
+
+  // Synchronisation dynamique quand la modale s'ouvre ou que le patient change
+  useEffect(() => {
+    if (patientToEdit) {
+      setNom(patientToEdit.nom);
+      setTelephone(patientToEdit.telephone);
+      setIsConventionne(patientToEdit.isConventionne);
+      setAssuranceDetails(patientToEdit.assuranceDetails);
+      setNumeroAssurance(patientToEdit.numeroAssurance || '');
+      setDateNaissance(patientToEdit.dateNaissance || '');
+      setAge(patientToEdit.age);
+      setPathologie(patientToEdit.pathologie);
+      setNombreSeancesPrescrites(patientToEdit.nombreSeancesPrescrites || 30);
+      setNotes(patientToEdit.notes || '');
+      setStatus(patientToEdit.status);
+    } else {
+      setNom('');
+      setTelephone('+216 ');
+      setIsConventionne(true);
+      setAssuranceDetails('CNAM - Filière Privée');
+      setNumeroAssurance('');
+      setDateNaissance('');
+      setAge(undefined);
+      setPathologie('');
+      setNombreSeancesPrescrites(30);
+      setNotes('');
+      setStatus('actif');
+    }
+  }, [patientToEdit, isOpen]);
 
   // Auto-calculate age when date of birth changes
   useEffect(() => {
@@ -88,6 +120,7 @@ export const PatientModal: React.FC<PatientModalProps> = ({
       dateNaissance: dateNaissance || undefined,
       age: age || undefined,
       pathologie: pathologie.trim() || 'Prise en charge orthophonique',
+      nombreSeancesPrescrites: Number(nombreSeancesPrescrites) > 0 ? Number(nombreSeancesPrescrites) : 30,
       notes: notes.trim() || undefined,
       notesMedicales: patientToEdit?.notesMedicales || (notes.trim() ? notes.trim() : undefined),
       notesMedicalesDate: patientToEdit?.notesMedicalesDate,
@@ -287,6 +320,91 @@ export const PatientModal: React.FC<PatientModalProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Nombre de séances prescrites / accordées (Modifiable à tout moment) */}
+          <div className="bg-gradient-to-br from-teal-50/60 to-slate-50 p-3.5 sm:p-4 rounded-2xl border border-teal-200/90 shadow-2xs space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-teal-600" />
+                <span>Nombre de séances prescrites / accordées *</span>
+              </label>
+              <span className="text-xs font-black text-teal-900 bg-teal-100 px-2.5 py-0.5 rounded-full border border-teal-200">
+                {nombreSeancesPrescrites} séances
+              </span>
+            </div>
+
+            {/* Stepper + Input */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1 flex items-center shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setNombreSeancesPrescrites((prev) => Math.max(1, prev - 5))}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-l-xl text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                  title="Diminuer de 5 séances"
+                >
+                  -5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNombreSeancesPrescrites((prev) => Math.max(1, prev - 1))}
+                  className="px-2.5 py-2 bg-white border-y border-r border-slate-200 text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                  title="Diminuer de 1 séance"
+                >
+                  -1
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max="300"
+                  value={nombreSeancesPrescrites}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    setNombreSeancesPrescrites(isNaN(val) ? 1 : Math.max(1, val));
+                  }}
+                  required
+                  className="w-full text-center py-2 text-sm font-black text-slate-900 border-y border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 z-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNombreSeancesPrescrites((prev) => prev + 1)}
+                  className="px-2.5 py-2 bg-white border-y border-l border-slate-200 text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                  title="Ajouter 1 séance"
+                >
+                  +1
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNombreSeancesPrescrites((prev) => prev + 5)}
+                  className="px-3 py-2 bg-white border border-slate-200 rounded-r-xl text-slate-700 font-bold hover:bg-slate-100 active:scale-95 transition text-xs"
+                  title="Ajouter 5 séances"
+                >
+                  +5
+                </button>
+              </div>
+            </div>
+
+            {/* Quick preset selector buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Prescriptions types :</span>
+              {[10, 15, 20, 25, 30, 40, 50, 60].map((num) => (
+                <button
+                  type="button"
+                  key={num}
+                  onClick={() => setNombreSeancesPrescrites(num)}
+                  className={`px-2 py-0.5 rounded-lg text-xs font-bold transition ${
+                    nombreSeancesPrescrites === num
+                      ? 'bg-teal-600 text-white shadow-2xs'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:border-teal-400 hover:text-teal-700'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-500 flex items-center gap-1">
+              <span>💡 Ce quota permet de suivre la progression du protocole de rééducation (séances faites / prescrites). Modifiable à volonté.</span>
+            </p>
           </div>
 
           {/* Notes cliniques */}

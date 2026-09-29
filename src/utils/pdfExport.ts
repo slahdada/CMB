@@ -243,7 +243,7 @@ export const exportPatientsPDF = (
       p.numeroAssurance || p.assuranceDetails || '-',
       p.pathologie || 'Non précisé',
       p.notes || '-',
-      `${effectuees} faites / ${planifiees} planif.`
+      `${effectuees}/${p.nombreSeancesPrescrites || 30} (${planifiees} prév.)`
     ];
   });
 

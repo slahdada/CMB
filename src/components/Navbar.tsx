@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Users, BarChart3, Settings, Plus, Sparkles, WifiOff, Phone, Layers, FileText, FileUp } from 'lucide-react';
+import { Calendar, Users, BarChart3, Settings, Plus, Sparkles, WifiOff, Layers, FileText, FileUp } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import { CabinetLogo } from './CabinetLogo';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -11,7 +11,7 @@ interface NavbarProps {
   setActiveTab: (tab: ActiveTab) => void;
   onOpenNewSession: () => void;
   onOpenNewPatient: () => void;
-  onOpenPhoneModal: () => void;
+  onOpenPhoneModal?: () => void;
   onExportPDF: () => void;
   onOpenImportModal: () => void;
   totalPatientsCount: number;
@@ -24,7 +24,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenNewSession,
   onOpenNewPatient,
-  onOpenPhoneModal,
   onExportPDF,
   onOpenImportModal,
   totalPatientsCount,
@@ -36,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
       {/* Top Banner / Branding Row */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5">
+      <div className="max-w-[1780px] 2xl:max-w-[1920px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-2 sm:py-2.5">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Cabinet identity */}
           <div className="flex items-center gap-3 min-w-0">
@@ -105,16 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <FileUp className="w-3.5 h-3.5 text-slate-600 transition-transform group-hover/import:scale-110" />
               <span className="hidden sm:inline">Importer des données</span>
               <span className="sm:hidden">Import</span>
-            </button>
-
-            {/* Bouton d'appel téléphonique direct */}
-            <button
-              onClick={onOpenPhoneModal}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 active:scale-95 transition shadow-2xs group/phone"
-              title="Passer un appel téléphonique (Cabinet ou Patient)"
-            >
-              <Phone className="w-3.5 h-3.5 text-emerald-600 transition-transform group-hover/phone:rotate-12" />
-              <span className="hidden sm:inline">Appel tél.</span>
             </button>
 
             <button
