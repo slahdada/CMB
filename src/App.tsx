@@ -9,6 +9,7 @@ import { CalendarView } from './components/CalendarView';
 import { PatientsTable } from './components/PatientsTable';
 import { DashboardView } from './components/DashboardView';
 import { SimultaneousAgenda } from './components/SimultaneousAgenda';
+import { PatientCreancesView } from './components/PatientCreancesView';
 import { SessionModal } from './components/SessionModal';
 import { PatientModal } from './components/PatientModal';
 import { PatientDetailsModal } from './components/PatientDetailsModal';
@@ -18,7 +19,7 @@ import { DataImportModal } from './components/DataImportModal';
 import { triggerExportPDF } from './utils/pdfExport';
 import { Patient, Session, SessionStatus, CabinetSettings } from './types';
 import { SessionsProvider, useSessions } from './context/SessionsContext';
-import { formatDateISO, parseDateISO } from './utils/dateUtils';
+import { formatDateISO, parseDateISO, isSessionOverdue7Days } from './utils/dateUtils';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { useTheme, useFullscreen } from './hooks/useThemeAndFullscreen';
 import { WifiOff, Sparkles, AlertCircle, X } from 'lucide-react';
@@ -33,6 +34,7 @@ function MainAppContent() {
     saveSession: saveSessionContext,
     deleteSession: deleteSessionContext,
     updateSessionStatus: updateSessionStatusContext,
+    recordPatientPayment,
     savePatient: savePatientContext,
     deletePatient: deletePatientContext,
     saveCabinetSettings,
@@ -53,6 +55,11 @@ function MainAppContent() {
   const setCalendarDate = useCallback((d: Date) => {
     setSelectedDate(formatDateISO(d));
   }, [setSelectedDate]);
+
+  // Nombre de séances dont le statut est impayé depuis plus de 7 jours
+  const overdueSessionsCount = useMemo(() => {
+    return sessions.filter((s) => isSessionOverdue7Days(s, calendarDate)).length;
+  }, [sessions, calendarDate]);
 
   // Modals state
   const [sessionModalOpen, setSessionModalOpen] = useState(false);
@@ -162,18 +169,19 @@ function MainAppContent() {
         onOpenNewSession={() => handleOpenNewSession()}
         onOpenNewPatient={handleOpenNewPatient}
         onExportPDF={handleExportPDF}
-        onOpenImportModal={() => setImportModalOpen(true)}
+        onOpenSettings={() => setSettingsModalOpen(true)}
         totalPatientsCount={patients.length}
         totalSessionsThisWeek={weekMetrics.totalSessionsThisWeek}
         conventionnesThisWeek={weekMetrics.conventionnesThisWeek}
+        overdueSessionsCount={overdueSessionsCount}
         theme={theme}
         onToggleTheme={toggleTheme}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
       />
 
-      {/* App Body Content */}
-      <main className="flex-1 max-w-[1780px] 2xl:max-w-[1920px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 space-y-4">
+      {/* App Body Content with bottom padding for mobile Bottom Navigation Bar and FAB */}
+      <main className="flex-1 max-w-[1780px] 2xl:max-w-[1920px] w-full mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-3 sm:py-4 pb-28 md:pb-6 space-y-4">
         {/* Notification de succès d'importation */}
         {importNotification && (
           <div className="bg-emerald-600 text-white p-3 sm:p-4 rounded-2xl shadow-md text-xs sm:text-sm font-bold flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
@@ -268,6 +276,19 @@ function MainAppContent() {
             sessions={sessions}
             patients={patients}
             settings={settings}
+          />
+        )}
+
+        {/* Tab 5: Rapport de Suivi des Créances Patients */}
+        {activeTab === 'creances' && (
+          <PatientCreancesView
+            sessions={sessions}
+            patients={patients}
+            settings={settings}
+            onOpenPatientDetails={(id) => setDetailsPatientId(id)}
+            onRecordPayment={(patientId, amount, mode, date, note) => {
+              recordPatientPayment(patientId, amount, mode, date, note);
+            }}
           />
         )}
       </main>

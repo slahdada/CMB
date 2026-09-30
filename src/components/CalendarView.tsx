@@ -36,7 +36,9 @@ import {
   createWhatsAppReminderLink, 
   parseDateISO, 
   isOverlapping,
-  getMonthCalendarGrid 
+  getMonthCalendarGrid,
+  isSessionOverdue7Days,
+  getDaysOverdue
 } from '../utils/dateUtils';
 
 interface CalendarViewProps {
@@ -63,6 +65,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [viewMode, setViewMode] = useState<'semaine' | 'jour' | 'mois' | 'liste'>('semaine');
   const [filterInsurance, setFilterInsurance] = useState<'all' | 'conventionne' | 'non_conventionne'>('all');
   const [filterOrtho, setFilterOrtho] = useState<'all' | 'maroua' | 'mariem' | 'stagiaire'>('all');
+  const [filterOverdueOnly, setFilterOverdueOnly] = useState<boolean>(false);
 
   const { settings } = useSessions();
   const { exportPlanning } = usePDFExporter();
@@ -146,7 +149,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return p ? p.telephone : '';
   };
 
-  // Filter sessions by insurance type and orthophoniste
+  // Filter sessions by insurance type, orthophoniste and overdue status
   const filterByInsurance = (sessionList: Session[]): Session[] => {
     return sessionList.filter((s) => {
       if (filterInsurance === 'conventionne' && !s.isConventionne) return false;
@@ -155,8 +158,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         const ortho = (s.orthophonisteNom || '').toLowerCase();
         if (!ortho.includes(filterOrtho)) return false;
       }
+      if (filterOverdueOnly && !isSessionOverdue7Days(s, selectedDate)) return false;
       return true;
     });
+  };
+
+  // Pastille rouge / Alerte visuelle pour impayés > 7 jours
+  const renderOverdueBadge = (session: Session) => {
+    if (!isSessionOverdue7Days(session, selectedDate)) return null;
+    const days = getDaysOverdue(session.date, selectedDate);
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-600 text-white shadow-xs animate-pulse flex-shrink-0 border border-rose-700 select-none"
+        title={`⚠️ Alerte Impayé : Séance non soldée depuis ${days} jours (> 7 jours)`}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+        <span>Impayé ({days}j)</span>
+      </span>
+    );
   };
 
   // Status badge styling
@@ -368,12 +387,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           {/* Filters & View Switcher */}
           <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5">
-            {/* Conventionné filter */}
-            <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-medium border border-slate-200/60 dark:border-slate-700">
+            {/* Conventionné filter & Overdue filter */}
+            <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-medium border border-slate-200/60 dark:border-slate-700 flex-wrap">
               <button
-                onClick={() => setFilterInsurance('all')}
+                onClick={() => {
+                  setFilterInsurance('all');
+                  setFilterOverdueOnly(false);
+                }}
                 className={`px-2.5 py-1 rounded-lg transition font-bold ${
-                  filterInsurance === 'all'
+                  filterInsurance === 'all' && !filterOverdueOnly
                     ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
                 }`}
@@ -381,9 +403,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 Tous ({viewMode === 'mois' ? monthTotal : weekTotal})
               </button>
               <button
-                onClick={() => setFilterInsurance('conventionne')}
+                onClick={() => {
+                  setFilterInsurance('conventionne');
+                  setFilterOverdueOnly(false);
+                }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition font-bold ${
-                  filterInsurance === 'conventionne'
+                  filterInsurance === 'conventionne' && !filterOverdueOnly
                     ? 'bg-teal-600 text-white shadow-2xs'
                     : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300'
                 }`}
@@ -392,9 +417,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <span>CNAM ({viewMode === 'mois' ? monthConv : weekConv})</span>
               </button>
               <button
-                onClick={() => setFilterInsurance('non_conventionne')}
+                onClick={() => {
+                  setFilterInsurance('non_conventionne');
+                  setFilterOverdueOnly(false);
+                }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition font-bold ${
-                  filterInsurance === 'non_conventionne'
+                  filterInsurance === 'non_conventionne' && !filterOverdueOnly
                     ? 'bg-amber-600 text-white shadow-2xs'
                     : 'text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-300'
                 }`}
@@ -402,6 +430,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>Privé ({viewMode === 'mois' ? monthTotal - monthConv : weekNonConv})</span>
               </button>
+
+              {/* Bouton Filtre Pastille Rouge : Impayés > 7 jours */}
+              {sessions.some((s) => isSessionOverdue7Days(s, selectedDate)) && (
+                <button
+                  onClick={() => setFilterOverdueOnly(!filterOverdueOnly)}
+                  style={{ touchAction: 'manipulation' }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg transition font-bold select-none ${
+                    filterOverdueOnly
+                      ? 'bg-rose-600 text-white shadow-2xs ring-2 ring-rose-400'
+                      : 'bg-rose-50 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/80 hover:bg-rose-100'
+                  }`}
+                  title="Alerte : Afficher uniquement les séances non payées depuis plus de 7 jours"
+                >
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                  <span>
+                    Impayés &gt; 7j ({sessions.filter((s) => isSessionOverdue7Days(s, selectedDate)).length})
+                  </span>
+                </button>
+              )}
             </div>
 
             {/* View Mode Switcher avec bouton Planning par mois */}
@@ -499,6 +546,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   const isToday = dayISO === '2026-09-29';
                   const isSelected = dayISO === selectedDateISO;
                   const daySessions = filterByInsurance(sessions.filter((s) => s.date === dayISO));
+                  const hasOverdueInDay = daySessions.some((s) => isSessionOverdue7Days(s, selectedDate));
 
                   return (
                     <div
@@ -525,6 +573,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         >
                           {day.getDate()}
                         </span>
+                        {hasOverdueInDay && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-rose-600 animate-ping"
+                            title="Alerte : séance(s) impayée(s) depuis plus de 7 jours"
+                          />
+                        )}
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-semibold">
                         {daySessions.length} séance{daySessions.length > 1 ? 's' : ''}
@@ -597,12 +651,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                   <div className="flex items-center justify-between gap-1">
                                     <span
                                       onClick={() => onOpenPatientDetails(session.patientId)}
-                                      className="font-bold truncate hover:underline cursor-pointer text-slate-900 dark:text-slate-100"
+                                      className="font-bold truncate hover:underline cursor-pointer text-slate-900 dark:text-slate-100 text-xs"
                                       title={session.patientNom}
                                     >
                                       {session.patientNom}
                                     </span>
-                                    {renderStatusBadge(session.status)}
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                      {renderOverdueBadge(session)}
+                                      {renderStatusBadge(session.status)}
+                                    </div>
                                   </div>
 
                                   {/* Ortho badge & Insurance tag */}
@@ -773,6 +830,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     <User className="w-3.5 h-3.5 text-slate-400" />
                                     <span>{session.patientNom}</span>
                                   </button>
+                                  {renderOverdueBadge(session)}
                                   {renderOrthoBadge(session.orthophonisteNom)}
                                   {renderStatusBadge(session.status)}
                                   <span
@@ -1113,6 +1171,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       sessions.filter((s) => s.date === day.dateISO)
                     );
                     const isSelected = day.dateISO === selectedDateISO;
+                    const hasOverdueInDay = daySessions.some((s) => isSessionOverdue7Days(s, selectedDate));
 
                     return (
                       <div
@@ -1129,17 +1188,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         {/* Haut de la case : Numéro du jour & Badges */}
                         <div>
                           <div className="flex items-center justify-between mb-1.5">
-                            <span
-                              className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center transition ${
-                                day.isToday
-                                  ? 'bg-teal-600 text-white shadow-xs ring-2 ring-teal-300 dark:ring-teal-700'
-                                  : day.isCurrentMonth
-                                  ? 'text-slate-800 dark:text-slate-100'
-                                  : 'text-slate-400 dark:text-slate-600'
-                              }`}
-                            >
-                              {day.dayNumber}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`w-6 h-6 rounded-lg text-xs font-black flex items-center justify-center transition ${
+                                  day.isToday
+                                    ? 'bg-teal-600 text-white shadow-xs ring-2 ring-teal-300 dark:ring-teal-700'
+                                    : day.isCurrentMonth
+                                    ? 'text-slate-800 dark:text-slate-100'
+                                    : 'text-slate-400 dark:text-slate-600'
+                                }`}
+                              >
+                                {day.dayNumber}
+                              </span>
+                              {hasOverdueInDay && (
+                                <span
+                                  className="w-2 h-2 rounded-full bg-rose-600 animate-ping"
+                                  title="Alerte : séance(s) impayée(s) depuis plus de 7 jours sur cette date"
+                                />
+                              )}
+                            </div>
 
                             <div className="flex items-center gap-1">
                               {daySessions.length > 0 && (
@@ -1167,6 +1234,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               const isOrthoStagiaire = (s.orthophonisteNom || '').toLowerCase().includes('stagiaire');
                               const dotColor = isOrthoMariem ? 'bg-indigo-500' : isOrthoStagiaire ? 'bg-amber-500' : 'bg-teal-500';
                               const isDone = isEffectuee(s.status);
+                              const isOverdue = isSessionOverdue7Days(s, selectedDate);
 
                               return (
                                 <button
@@ -1176,18 +1244,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     onOpenSessionModal(s);
                                   }}
                                   className={`w-full text-left text-[10px] font-medium p-1 rounded-lg border flex items-center justify-between gap-1 transition truncate ${
-                                    s.isConventionne
+                                    isOverdue
+                                      ? 'bg-rose-50/90 dark:bg-rose-950/70 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-100 ring-1 ring-rose-400/40'
+                                      : s.isConventionne
                                       ? 'bg-teal-50/90 dark:bg-teal-950/60 border-teal-200/80 dark:border-teal-800/80 text-teal-950 dark:text-teal-100 hover:bg-teal-100 dark:hover:bg-teal-900/60'
                                       : 'bg-amber-50/90 dark:bg-amber-950/60 border-amber-200/80 dark:border-amber-800/80 text-amber-950 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-900/60'
                                   }`}
-                                  title={`${s.startTime}-${s.endTime} : ${s.patientNom} (${s.orthophonisteNom || 'Maroua'}) - ${isDone ? 'Effectuée' : 'Planifiée'}`}
+                                  title={`${s.startTime}-${s.endTime} : ${s.patientNom} (${s.orthophonisteNom || 'Maroua'}) - ${isOverdue ? '⚠️ Impayé > 7 jours' : isDone ? 'Effectuée' : 'Planifiée'}`}
                                 >
                                   <div className="flex items-center gap-1 min-w-0 truncate">
-                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`}></span>
+                                    {isOverdue ? (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse flex-shrink-0"></span>
+                                    ) : (
+                                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor}`}></span>
+                                    )}
                                     <span className="font-bold flex-shrink-0">{s.startTime}</span>
                                     <span className="truncate">{s.patientNom}</span>
                                   </div>
-                                  {isDone ? (
+                                  {isOverdue ? (
+                                    <span className="text-[8px] font-black bg-rose-600 text-white px-1 rounded-full flex-shrink-0">!</span>
+                                  ) : isDone ? (
                                     <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                                   ) : (
                                     <span className="w-1.5 h-1.5 rounded-full bg-sky-400 flex-shrink-0"></span>
@@ -1279,13 +1355,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
 
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <button
                           onClick={() => onOpenPatientDetails(session.patientId)}
                           className="font-bold text-slate-900 dark:text-slate-100 text-sm hover:underline"
                         >
                           {session.patientNom}
                         </button>
+                        {renderOverdueBadge(session)}
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                             session.isConventionne

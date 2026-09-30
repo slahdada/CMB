@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Session, Patient, CabinetSettings } from '../types';
+import { Session, Patient, CabinetSettings, PatientCreanceSummary } from '../types';
 import { 
   exportSinglePatientPDF, 
   exportPatientsFilteredPDF, 
@@ -7,6 +7,7 @@ import {
   exportTripleAgendaPDF, 
   exportOrthoStatsPeriodPDF, 
   exportDashboardPDF,
+  exportCreancesReportPDF,
   exportCustomTablePDF,
   CustomTableExportOptions,
   triggerExportPDF,
@@ -69,6 +70,21 @@ export function usePDFExporter() {
     exportDashboardPDF(sessions, patients, settings, currentDateStr);
   }, []);
 
+  const exportCreancesReport = useCallback((
+    creances: PatientCreanceSummary[],
+    totals: {
+      totalDu: number;
+      totalPaye: number;
+      totalReste: number;
+      tauxRecouvrement: number;
+      totalSeancesRealisees: number;
+    },
+    settings: CabinetSettings,
+    filtersDescription?: string
+  ) => {
+    exportCreancesReportPDF(creances, totals, settings, filtersDescription);
+  }, []);
+
   const exportCustomTable = useCallback((options: CustomTableExportOptions) => {
     exportCustomTablePDF(options);
   }, []);
@@ -84,6 +100,7 @@ export function usePDFExporter() {
     exportTripleAgenda,
     exportOrthoStats,
     exportDashboard,
+    exportCreancesReport,
     exportCustomTable,
     triggerContextExport,
   };

@@ -16,11 +16,12 @@ import {
 } from 'lucide-react';
 import { Patient, Session, CabinetSettings } from '../types';
 import { add45Minutes, formatDateISO } from '../utils/dateUtils';
+import { ActiveTab } from './Navbar';
 
 interface DataImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  activeTab: 'planning' | 'simultane' | 'patients' | 'dashboard' | 'settings';
+  activeTab: ActiveTab;
   patients: Patient[];
   sessions: Session[];
   settings: CabinetSettings;

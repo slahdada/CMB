@@ -8,6 +8,7 @@ import {
   CheckCircle2, 
   XCircle, 
   AlertCircle, 
+  AlertTriangle,
   Coins, 
   Clock, 
   Users, 
@@ -15,7 +16,11 @@ import {
   ChevronRight,
   Sparkles,
   PieChart as PieChartIcon,
-  FileText
+  FileText,
+  MessageSquare,
+  Phone,
+  ArrowRight,
+  User
 } from 'lucide-react';
 import { Session, Patient, CabinetSettings } from '../types';
 import { 
@@ -23,7 +28,10 @@ import {
   formatDateISO, 
   getMondayOfWeek, 
   getWeekDays, 
-  formatFrenchDate 
+  formatFrenchDate,
+  isSessionOverdue7Days,
+  getDaysOverdue,
+  cleanWhatsAppNumber
 } from '../utils/dateUtils';
 import { DailyOrthoStats } from './DailyOrthoStats';
 import { isEffectuee } from '../context/SessionsContext';
@@ -211,6 +219,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const maxDayTotal = Math.max(...weekDaysData.map((d) => d.total), 6);
   const maxWeekTotal = Math.max(...monthWeeksData.map((w) => w.total), 8);
 
+  // Séances dont le paiement est en attente depuis plus de 7 jours (Alerte Impayés)
+  const overdueSessions = useMemo(() => {
+    return sessions
+      .filter((s) => isSessionOverdue7Days(s, currentDate))
+      .sort((a, b) => a.date.localeCompare(b.date)); // Les plus anciennes en premier
+  }, [sessions, currentDate]);
+
+  const overdueTotalAmount = useMemo(() => {
+    return overdueSessions.reduce((sum, s) => {
+      const paid = s.montantPaye ?? (s.isPaye ? s.tarif : 0);
+      return sum + Math.max(0, s.tarif - paid);
+    }, 0);
+  }, [overdueSessions]);
+
+  const [showAllOverdue, setShowAllOverdue] = useState(false);
+
   return (
     <div className="space-y-6">
       {/* Header of Dashboard */}
@@ -260,6 +284,144 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         initialDate={formatDateISO(currentDate)}
         onDateChange={(d) => setCurrentDate(parseDateISO(d))}
       />
+
+      {/* SECTION : ALERTE VISUELLE (PASTILLE ROUGE) - SUIVI DES IMPAYÉS > 7 JOURS */}
+      {overdueSessions.length > 0 ? (
+        <div className="bg-gradient-to-br from-rose-50/90 via-red-50/80 to-white dark:from-rose-950/50 dark:via-red-950/40 dark:to-slate-900 rounded-2xl border-2 border-rose-300 dark:border-rose-800/80 p-4 sm:p-5 shadow-xs space-y-3.5 transition-all">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-rose-200/80 dark:border-rose-900/60">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold shadow-xs flex-shrink-0 animate-pulse">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-sm sm:text-base font-black text-rose-950 dark:text-rose-100 flex items-center gap-2">
+                    <span>Alerte Impayés &gt; 7 jours</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-extrabold shadow-2xs">
+                    {overdueSessions.length} séance{overdueSessions.length > 1 ? 's' : ''} en retard
+                  </span>
+                </div>
+                <p className="text-xs text-rose-800/80 dark:text-rose-300/80 mt-0.5 font-medium">
+                  Séances effectuées non soldées dont la date est antérieure de plus de 7 jours.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 self-end sm:self-center">
+              <div className="text-right">
+                <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider block">
+                  Montant à recouvrer
+                </span>
+                <span className="text-lg sm:text-xl font-black text-rose-700 dark:text-rose-300">
+                  {overdueTotalAmount} {settings.devise}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Liste détaillée des séances en retard */}
+          <div className="space-y-2">
+            {(showAllOverdue ? overdueSessions : overdueSessions.slice(0, 4)).map((s) => {
+              const daysOverdue = getDaysOverdue(s.date, currentDate);
+              const p = patients.find((pat) => pat.id === s.patientId);
+              const phone = p?.telephone || '';
+              const waNum = cleanWhatsAppNumber(phone);
+              const dueAmount = Math.max(0, s.tarif - (s.montantPaye || (s.isPaye ? s.tarif : 0)));
+
+              const waMessage = `Bonjour ${s.patientNom}, Cabinet d'orthophonie Belgaied Maroua. Nous vous informons que pour votre séance du ${formatFrenchDate(parseDateISO(s.date), false)}, un montant de ${dueAmount} DT reste en attente de règlement (séance effectuée il y a ${daysOverdue} jours). Merci de régulariser lors de votre prochain passage.`;
+              const waLink = waNum ? `https://wa.me/${waNum}?text=${encodeURIComponent(waMessage)}` : null;
+
+              return (
+                <div
+                  key={s.id}
+                  className="bg-white dark:bg-slate-900/90 p-3 rounded-xl border border-rose-200/90 dark:border-rose-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs hover:border-rose-300 transition"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse flex-shrink-0"></span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                          {s.patientNom}
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          Il y a {daysOverdue} jours
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          ({s.orthophonisteNom || 'Maroua'})
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        Séance du {formatFrenchDate(parseDateISO(s.date), false)} à {s.startTime} • {s.motif || 'Rééducation'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 justify-between sm:justify-end">
+                    <span className="font-black text-xs text-rose-600 dark:text-rose-400 font-mono">
+                      {dueAmount} {settings.devise}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      {waLink && (
+                        <a
+                          href={waLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition shadow-2xs"
+                          title="Envoyer relance WhatsApp au patient"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>Relance</span>
+                        </a>
+                      )}
+                      {phone && (
+                        <a
+                          href={`tel:${phone}`}
+                          className="p-1 rounded-lg bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 transition"
+                          title={`Appeler ${s.patientNom}`}
+                        >
+                          <Phone className="w-3 h-3 text-emerald-400" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {overdueSessions.length > 4 && (
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAllOverdue(!showAllOverdue)}
+                className="text-xs font-bold text-rose-700 dark:text-rose-300 hover:underline"
+              >
+                {showAllOverdue
+                  ? 'Réduire la liste'
+                  : `Afficher les ${overdueSessions.length - 4} autre(s) séance(s) en retard...`}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-emerald-50/60 dark:bg-emerald-950/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-800/60 p-3.5 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span className="font-bold text-emerald-900 dark:text-emerald-200">
+              Aucun impayé en retard (&gt; 7 jours).
+            </span>
+            <span className="hidden sm:inline text-emerald-700/80 dark:text-emerald-400/80">
+              Tous les règlements sont à jour ou dans les délais normaux.
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100/80 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full">
+            Gestion saine ✓
+          </span>
+        </div>
+      )}
 
       {/* SECTION 1: STATS PAR SEMAINE (AUTOMATIQUE) */}
       <div className="space-y-4">

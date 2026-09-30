@@ -1,11 +1,11 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Session, Patient, CabinetSettings } from '../types';
+import { Session, Patient, CabinetSettings, PatientCreanceSummary, PaymentStatus } from '../types';
 import { formatFrenchDate, parseDateISO, formatDateISO, getMondayOfWeek, getWeekDays } from './dateUtils';
 import { isEffectuee, OrthoSummaryMetrics } from '../context/SessionsContext';
 
 export interface ExportContext {
-  activeTab: 'planning' | 'simultane' | 'patients' | 'dashboard' | 'settings';
+  activeTab: 'planning' | 'simultane' | 'patients' | 'dashboard' | 'creances' | 'settings';
   sessions: Session[];
   patients: Patient[];
   settings: CabinetSettings;
@@ -872,6 +872,122 @@ export const exportDashboardPDF = (
 };
 
 /**
+ * Export Rapport de Suivi des Créances & Règlements Patients
+ */
+export const exportCreancesReportPDF = (
+  creances: PatientCreanceSummary[],
+  totals: {
+    totalDu: number;
+    totalPaye: number;
+    totalReste: number;
+    tauxRecouvrement: number;
+    totalSeancesRealisees: number;
+  },
+  settings: CabinetSettings,
+  filtersDescription?: string
+) => {
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const title = "Rapport de Suivi des Créances Patients & Honoraires";
+  const subtitle = filtersDescription || "État récapitulatif des séances réalisées, montants payés et soldes à recouvrer";
+  const metaInfo = `Généré le ${formatFrenchDate(new Date(), true)} • ${creances.length} dossier(s)`;
+
+  addCabinetHeader(doc, title, subtitle, metaInfo);
+
+  // Synthèse KPI en bandeau
+  doc.setFillColor(248, 250, 252); // Slate 50
+  doc.roundedRect(14, 46, pageWidth - 28, 14, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.roundedRect(14, 46, pageWidth - 28, 14, 2, 2, 'D');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Total Facturé : ${totals.totalDu} ${settings.devise}`, 20, 55);
+
+  doc.setTextColor(5, 150, 105); // Emerald
+  doc.text(`Total Encaissé : ${totals.totalPaye} ${settings.devise}`, 85, 55);
+
+  doc.setTextColor(225, 29, 72); // Rose / Red
+  doc.text(`Reste à Recouvrer : ${totals.totalReste} ${settings.devise}`, 155, 55);
+
+  doc.setTextColor(13, 148, 136); // Teal
+  doc.text(`Taux Recouvrement : ${totals.tauxRecouvrement} %`, 230, 55);
+
+  // Tableau des créances
+  const tableRows = creances.map((c, idx) => {
+    const orthos = c.orthophonistesList.join(', ') || 'Maroua';
+    const regime = c.isConventionne ? 'Conventionné CNAM' : 'Privé';
+    const statut = c.statutCreance === 'paye' ? 'Soldé ✓' : c.statutCreance === 'partiel' ? 'Partiel' : 'En attente';
+
+    return [
+      (idx + 1).toString(),
+      c.patientNom,
+      c.telephone,
+      regime,
+      orthos,
+      `${c.seancesRealisees} faite(s)`,
+      `${c.montantTotalDu} ${settings.devise}`,
+      `${c.montantPaye} ${settings.devise}`,
+      `${c.resteARecouvrer} ${settings.devise}`,
+      statut,
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 64,
+    head: [[
+      '#',
+      'Patient',
+      'Téléphone',
+      'Régime',
+      'Orthophoniste(s)',
+      'Séances Réalisées',
+      'Montant Dû',
+      'Montant Payé',
+      'Reste à Recouvrer',
+      'Statut',
+    ]],
+    body: tableRows,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [15, 118, 110], // Teal 700
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: 'bold',
+      halign: 'left',
+    },
+    bodyStyles: {
+      fontSize: 8,
+      cellPadding: 2.2,
+      textColor: [30, 41, 59],
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    columnStyles: {
+      0: { cellWidth: 8, halign: 'center' },
+      1: { cellWidth: 38, fontStyle: 'bold' },
+      2: { cellWidth: 26 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 34 },
+      5: { cellWidth: 26, halign: 'center' },
+      6: { cellWidth: 26, halign: 'right' },
+      7: { cellWidth: 26, halign: 'right' },
+      8: { cellWidth: 30, halign: 'right', fontStyle: 'bold' },
+      9: { cellWidth: 22, halign: 'center' },
+    },
+    margin: { left: 14, right: 14, bottom: 18 },
+  });
+
+  addCabinetFooter(doc);
+  doc.save(`Rapport_Creances_Belgaied_${formatDateISO(new Date())}.pdf`);
+};
+
+/**
  * Fonction universelle d'export selon le contexte actif
  */
 export const triggerExportPDF = (ctx: ExportContext) => {
@@ -887,6 +1003,55 @@ export const triggerExportPDF = (ctx: ExportContext) => {
     case 'patients':
       exportPatientsFilteredPDF(patients, sessions, settings, 'all');
       break;
+    case 'creances': {
+      const creancesList: PatientCreanceSummary[] = patients.map((p) => {
+        const pSessions = sessions.filter(
+          (s) => s.patientId === p.id || s.patientNom.trim().toLowerCase() === p.nom.trim().toLowerCase()
+        );
+        const orthos = Array.from(new Set(pSessions.map((s) => s.orthophonisteNom || 'Maroua')));
+        const realises = pSessions.filter((s) => isEffectuee(s.status)).length;
+        const totalDu = pSessions
+          .filter((s) => isEffectuee(s.status))
+          .reduce((sum, s) => sum + s.tarif, 0);
+        const montantPaye = pSessions
+          .filter((s) => isEffectuee(s.status))
+          .reduce((sum, s) => sum + (s.montantPaye ?? (s.isPaye ? s.tarif : 0)), 0);
+        const reste = Math.max(0, totalDu - montantPaye);
+        const statut: PaymentStatus = totalDu > 0 ? (reste === 0 ? 'paye' : montantPaye > 0 ? 'partiel' : 'en_attente') : 'paye';
+
+        return {
+          patientId: p.id,
+          patientNom: p.nom,
+          telephone: p.telephone,
+          isConventionne: p.isConventionne,
+          assuranceDetails: p.assuranceDetails,
+          numeroAssurance: p.numeroAssurance,
+          orthophonistesList: orthos.length > 0 ? orthos : ['Maroua'],
+          totalSeances: pSessions.length,
+          seancesRealisees: realises,
+          seancesPlanifiees: pSessions.filter((s) => s.status === 'planifiee').length,
+          seancesAnnulees: pSessions.filter((s) => s.status === 'annulee').length,
+          montantTotalDu: totalDu,
+          montantPaye,
+          resteARecouvrer: reste,
+          statutCreance: statut,
+          sessionsList: pSessions,
+        };
+      });
+
+      const totalDu = creancesList.reduce((acc, c) => acc + c.montantTotalDu, 0);
+      const totalPaye = creancesList.reduce((acc, c) => acc + c.montantPaye, 0);
+      const totalReste = creancesList.reduce((acc, c) => acc + c.resteARecouvrer, 0);
+      const totalSeancesRealisees = creancesList.reduce((acc, c) => acc + c.seancesRealisees, 0);
+      const tauxRecouvrement = totalDu > 0 ? Math.round((totalPaye / totalDu) * 100) : 100;
+
+      exportCreancesReportPDF(
+        creancesList,
+        { totalDu, totalPaye, totalReste, totalSeancesRealisees, tauxRecouvrement },
+        settings
+      );
+      break;
+    }
     case 'dashboard':
     default:
       exportDashboardPDF(sessions, patients, settings, currentDate || '2026-09-29');

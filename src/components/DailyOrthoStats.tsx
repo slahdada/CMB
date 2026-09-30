@@ -24,7 +24,9 @@ import {
   parseDateISO, 
   formatFrenchDate, 
   getMondayOfWeek, 
-  getWeekDays 
+  getWeekDays,
+  isSessionOverdue7Days,
+  getDaysOverdue
 } from '../utils/dateUtils';
 import { isEffectuee, OrthoSummaryMetrics } from '../context/SessionsContext';
 import { usePDFExporter } from '../hooks/usePDFExporter';
@@ -657,6 +659,8 @@ export const DailyOrthoStats: React.FC<DailyOrthoStatsProps> = ({
         {orthoStatsList.map((ortho) => {
           const tauxRealisation = ortho.total > 0 ? Math.round((ortho.realisees / ortho.total) * 100) : 0;
           const isSelected = selectedOrthoDetail === ortho.nom;
+          const refDateObj = parseDateISO(selectedDate);
+          const overdueSessionsCount = ortho.sessionsList.filter((s) => isSessionOverdue7Days(s, refDateObj)).length;
 
           return (
             <div
@@ -675,14 +679,25 @@ export const DailyOrthoStats: React.FC<DailyOrthoStatsProps> = ({
                       {ortho.nom.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                        <span>{ortho.nom}</span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                          {ortho.nom}
+                        </h4>
                         {ortho.nom === 'Maroua' && (
                           <span className="text-[10px] font-extrabold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/70 px-1.5 py-0.2 rounded-full border border-teal-200 dark:border-teal-800">
                             Titulaire
                           </span>
                         )}
-                      </h4>
+                        {overdueSessionsCount > 0 && (
+                          <span 
+                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-rose-600 text-white animate-pulse"
+                            title={`${overdueSessionsCount} séance(s) impayée(s) depuis plus de 7 jours`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                            <span>{overdueSessionsCount} impayé{overdueSessionsCount > 1 ? 's' : ''} &gt; 7j</span>
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{ortho.role}</p>
                     </div>
                   </div>
@@ -779,10 +794,17 @@ export const DailyOrthoStats: React.FC<DailyOrthoStatsProps> = ({
                     <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
                       {ortho.sessionsList.map((s) => {
                         const isDone = isEffectuee(s.status);
+                        const isOverdue = isSessionOverdue7Days(s, refDateObj);
+                        const days = isOverdue ? getDaysOverdue(s.date, refDateObj) : 0;
+
                         return (
                           <div
                             key={s.id}
-                            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2 text-xs hover:border-slate-300 dark:hover:border-slate-600 transition"
+                            className={`p-2 rounded-xl border flex items-center justify-between gap-2 text-xs transition ${
+                              isOverdue
+                                ? 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-300 dark:border-rose-800/80'
+                                : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                            }`}
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -795,6 +817,15 @@ export const DailyOrthoStats: React.FC<DailyOrthoStatsProps> = ({
                                 <span className="font-bold text-slate-900 dark:text-slate-100 truncate">
                                   {s.patientNom}
                                 </span>
+                                {isOverdue && (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-600 text-white animate-pulse"
+                                    title={`Impayé depuis ${days} jours`}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                                    <span>Impayé ({days}j)</span>
+                                  </span>
+                                )}
                               </div>
                               {s.motif && (
                                 <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
@@ -815,7 +846,7 @@ export const DailyOrthoStats: React.FC<DailyOrthoStatsProps> = ({
                               >
                                 {isDone ? 'Effectuée' : s.status}
                               </span>
-                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 font-mono">
                                 {s.tarif} DT
                               </span>
                             </div>

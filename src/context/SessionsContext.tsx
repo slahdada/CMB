@@ -62,6 +62,21 @@ interface SessionsContextType {
   saveSession: (session: Session) => void;
   deleteSession: (sessionId: string) => void;
   updateSessionStatus: (sessionId: string, newStatus: SessionStatus) => void;
+  updateSessionPayment: (
+    sessionId: string, 
+    isPaye: boolean, 
+    montantPaye?: number, 
+    modePaiement?: 'especes' | 'cheque' | 'virement' | 'cnam' | 'autre',
+    datePaiement?: string,
+    notePaiement?: string
+  ) => void;
+  recordPatientPayment: (
+    patientId: string, 
+    amountPaid: number, 
+    modePaiement?: 'especes' | 'cheque' | 'virement' | 'cnam' | 'autre', 
+    datePaiement?: string, 
+    notePaiement?: string
+  ) => void;
   savePatient: (patient: Patient) => void;
   deletePatient: (patientId: string) => void;
   saveCabinetSettings: (newSettings: CabinetSettings) => void;
@@ -185,6 +200,87 @@ export const SessionsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateSessionStatus = useCallback((sessionId: string, newStatus: SessionStatus) => {
     setSessions((prev) => {
       const next = prev.map((s) => (s.id === sessionId ? { ...s, status: newStatus } : s));
+      saveSessions(next);
+      return next;
+    });
+  }, []);
+
+  // 3b. Mise à jour directe du paiement d'une séance
+  const updateSessionPayment = useCallback((
+    sessionId: string, 
+    isPaye: boolean, 
+    montantPaye?: number, 
+    modePaiement?: 'especes' | 'cheque' | 'virement' | 'cnam' | 'autre',
+    datePaiement?: string,
+    notePaiement?: string
+  ) => {
+    const today = formatDateISO(new Date());
+    setSessions((prev) => {
+      const next = prev.map((s) => {
+        if (s.id === sessionId) {
+          const mPaye = isPaye ? (montantPaye ?? s.tarif) : (montantPaye ?? 0);
+          return {
+            ...s,
+            isPaye,
+            montantPaye: mPaye,
+            modePaiement: isPaye ? (modePaiement || s.modePaiement || 'especes') : undefined,
+            datePaiement: isPaye ? (datePaiement || s.datePaiement || today) : undefined,
+            notePaiement: notePaiement !== undefined ? notePaiement : s.notePaiement,
+          };
+        }
+        return s;
+      });
+      saveSessions(next);
+      return next;
+    });
+  }, []);
+
+  // 3c. Enregistrement d'un règlement global ou partiel pour un patient
+  const recordPatientPayment = useCallback((
+    patientId: string, 
+    amountPaid: number, 
+    modePaiement?: 'especes' | 'cheque' | 'virement' | 'cnam' | 'autre', 
+    datePaiement?: string, 
+    notePaiement?: string
+  ) => {
+    const today = datePaiement || formatDateISO(new Date());
+    setSessions((prev) => {
+      // Trouver les séances de ce patient triées par date croissante
+      let remainingCredit = Math.max(0, amountPaid);
+      const patientSessions = prev
+        .filter((s) => s.patientId === patientId && s.status !== 'annulee')
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const updatedIds = new Map<string, { isPaye: boolean; montantPaye: number }>();
+
+      for (const sess of patientSessions) {
+        if (remainingCredit <= 0) break;
+        const currentPaid = sess.montantPaye ?? (sess.isPaye ? sess.tarif : 0);
+        const due = Math.max(0, sess.tarif - currentPaid);
+        if (due > 0) {
+          const toPay = Math.min(remainingCredit, due);
+          const newPaid = currentPaid + toPay;
+          const isFullyPaid = newPaid >= sess.tarif;
+          updatedIds.set(sess.id, { isPaye: isFullyPaid, montantPaye: newPaid });
+          remainingCredit -= toPay;
+        }
+      }
+
+      const next = prev.map((s) => {
+        if (updatedIds.has(s.id)) {
+          const update = updatedIds.get(s.id)!;
+          return {
+            ...s,
+            isPaye: update.isPaye,
+            montantPaye: update.montantPaye,
+            modePaiement: modePaiement || s.modePaiement || 'especes',
+            datePaiement: today,
+            notePaiement: notePaiement !== undefined ? notePaiement : s.notePaiement,
+          };
+        }
+        return s;
+      });
+
       saveSessions(next);
       return next;
     });
@@ -416,6 +512,8 @@ export const SessionsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       saveSession,
       deleteSession,
       updateSessionStatus,
+      updateSessionPayment,
+      recordPatientPayment,
       savePatient,
       deletePatient,
       saveCabinetSettings,
@@ -435,6 +533,8 @@ export const SessionsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       saveSession,
       deleteSession,
       updateSessionStatus,
+      updateSessionPayment,
+      recordPatientPayment,
       savePatient,
       deletePatient,
       saveCabinetSettings,

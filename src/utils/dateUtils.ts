@@ -199,3 +199,45 @@ export function createWhatsAppReminderLink(
   const message = `Bonjour ${patientNom}, nous vous rappelons votre séance d'orthophonie au Cabinet Belgaied Maroua prévue le ${dateStr} de ${heureDebut} à ${heureFin}. Merci de nous informer au moins 24h à l'avance en cas d'empêchement. À bientôt !`;
   return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
 }
+
+/**
+ * Détermine si une séance est impayée depuis plus de 7 jours
+ * Condition :
+ * - Séance non annulée
+ * - Non soldée (!isPaye et montantPaye < tarif)
+ * - Date de la séance antérieure d'au moins 7 jours par rapport à aujourd'hui (ou date de référence)
+ */
+export function isSessionOverdue7Days(
+  session: { date: string; isPaye?: boolean; montantPaye?: number; tarif: number; status?: string },
+  referenceDate: Date = new Date()
+): boolean {
+  if (session.status === 'annulee' || session.status === 'absent') return false;
+  const isPaid = session.isPaye || (session.montantPaye !== undefined && session.montantPaye >= session.tarif);
+  if (isPaid) return false;
+
+  const sessionDate = parseDateISO(session.date);
+  const refDate = new Date(referenceDate);
+  refDate.setHours(0, 0, 0, 0);
+  sessionDate.setHours(0, 0, 0, 0);
+
+  const diffMs = refDate.getTime() - sessionDate.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays > 7;
+}
+
+/**
+ * Calcule le nombre de jours d'ancienneté d'un impayé
+ */
+export function getDaysOverdue(
+  sessionDateISO: string,
+  referenceDate: Date = new Date()
+): number {
+  const sessionDate = parseDateISO(sessionDateISO);
+  const refDate = new Date(referenceDate);
+  refDate.setHours(0, 0, 0, 0);
+  sessionDate.setHours(0, 0, 0, 0);
+
+  const diffMs = refDate.getTime() - sessionDate.getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
+

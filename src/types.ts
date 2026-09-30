@@ -39,6 +39,34 @@ export interface Session {
   notesSeance?: string;
   orthophonisteNom?: string; // "Maroua" | "Mariem" | "Stagiaire" | nom libre
   position?: 1 | 2 | 3;
+  // Suivi des créances et règlements
+  isPaye?: boolean;
+  montantPaye?: number; // Montant réglé (en DT)
+  datePaiement?: string; // YYYY-MM-DD
+  modePaiement?: 'especes' | 'cheque' | 'virement' | 'cnam' | 'autre';
+  notePaiement?: string;
+}
+
+export type PaymentStatus = 'paye' | 'partiel' | 'en_attente';
+
+export interface PatientCreanceSummary {
+  patientId: string;
+  patientNom: string;
+  telephone: string;
+  isConventionne: boolean;
+  assuranceDetails: string;
+  numeroAssurance?: string;
+  orthophonistesList: string[];
+  totalSeances: number;
+  seancesRealisees: number;
+  seancesPlanifiees: number;
+  seancesAnnulees: number;
+  montantTotalDu: number;
+  montantPaye: number;
+  resteARecouvrer: number;
+  statutCreance: PaymentStatus;
+  dernierReglementDate?: string;
+  sessionsList: Session[];
 }
 
 export interface CabinetSettings {
