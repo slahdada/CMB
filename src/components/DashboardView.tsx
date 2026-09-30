@@ -14,7 +14,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Sparkles,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  FileText
 } from 'lucide-react';
 import { Session, Patient, CabinetSettings } from '../types';
 import { 
@@ -25,6 +26,8 @@ import {
   formatFrenchDate 
 } from '../utils/dateUtils';
 import { DailyOrthoStats } from './DailyOrthoStats';
+import { isEffectuee } from '../context/SessionsContext';
+import { usePDFExporter } from '../hooks/usePDFExporter';
 
 interface DashboardViewProps {
   sessions: Session[];
@@ -37,6 +40,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   patients,
   settings,
 }) => {
+  const { exportDashboard, exportPlanning } = usePDFExporter();
+
   // Reference date: default 2026-09-29
   const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 8, 29));
   
@@ -78,21 +83,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const total = weekSessions.length;
     const conventionnes = weekSessions.filter((s) => s.isConventionne).length;
     const nonConventionnes = total - conventionnes;
-    const realisees = weekSessions.filter((s) => s.status === 'realisee').length;
+    const realisees = weekSessions.filter((s) => isEffectuee(s.status)).length;
     const planifiees = weekSessions.filter((s) => s.status === 'planifiee').length;
     const annulees = weekSessions.filter((s) => s.status === 'annulee' || s.status === 'absent').length;
 
     // Recettes
     const recetteConventionnee = weekSessions
-      .filter((s) => s.isConventionne && s.status !== 'annulee')
+      .filter((s) => s.isConventionne && isEffectuee(s.status))
       .reduce((sum, s) => sum + s.tarif, 0);
 
     const recetteNonConventionnee = weekSessions
-      .filter((s) => !s.isConventionne && s.status !== 'annulee')
+      .filter((s) => !s.isConventionne && isEffectuee(s.status))
       .reduce((sum, s) => sum + s.tarif, 0);
 
     const recetteTotale = recetteConventionnee + recetteNonConventionnee;
-    const totalHeures = (total * 45) / 60;
+    const totalHeures = (realisees * 45) / 60;
 
     return {
       total,
@@ -125,20 +130,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const total = monthSessions.length;
     const conventionnes = monthSessions.filter((s) => s.isConventionne).length;
     const nonConventionnes = total - conventionnes;
-    const realisees = monthSessions.filter((s) => s.status === 'realisee').length;
+    const realisees = monthSessions.filter((s) => isEffectuee(s.status)).length;
     const planifiees = monthSessions.filter((s) => s.status === 'planifiee').length;
     const annulees = monthSessions.filter((s) => s.status === 'annulee' || s.status === 'absent').length;
 
     const recetteConventionnee = monthSessions
-      .filter((s) => s.isConventionne && s.status !== 'annulee')
+      .filter((s) => s.isConventionne && isEffectuee(s.status))
       .reduce((sum, s) => sum + s.tarif, 0);
 
     const recetteNonConventionnee = monthSessions
-      .filter((s) => !s.isConventionne && s.status !== 'annulee')
+      .filter((s) => !s.isConventionne && isEffectuee(s.status))
       .reduce((sum, s) => sum + s.tarif, 0);
 
     const recetteTotale = recetteConventionnee + recetteNonConventionnee;
-    const totalHeures = (total * 45) / 60;
+    const totalHeures = (realisees * 45) / 60;
 
     return {
       total,
@@ -235,6 +240,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               Semaine & Mois Actuel
             </button>
+
+            <button
+              onClick={() => exportDashboard(sessions, patients, settings, formatDateISO(currentDate))}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-md group/pdf"
+              title="Exporter l'ensemble du tableau de bord en PDF"
+            >
+              <FileText className="w-3.5 h-3.5 group-hover/pdf:scale-110 transition-transform" />
+              <span>Exporter Bilan PDF</span>
+            </button>
           </div>
         </div>
       </div>
@@ -243,7 +257,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <DailyOrthoStats 
         sessions={sessions} 
         settings={settings} 
-        initialDate={formatDateISO(currentDate)} 
+        initialDate={formatDateISO(currentDate)}
+        onDateChange={(d) => setCurrentDate(parseDateISO(d))}
       />
 
       {/* SECTION 1: STATS PAR SEMAINE (AUTOMATIQUE) */}
@@ -281,6 +296,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               title="Semaine suivante"
             >
               <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => exportPlanning(sessions, patients, settings, weekStartISO, 'semaine')}
+              className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition shadow-2xs group/pdf"
+              title="Exporter les séances de cette semaine en PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600 group-hover/pdf:scale-110 transition-transform" />
+              <span>PDF Semaine</span>
             </button>
           </div>
         </div>
@@ -473,6 +497,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               title="Mois suivant"
             >
               <ChevronRight className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => exportPlanning(sessions, patients, settings, formatDateISO(currentDate), 'mois')}
+              className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition shadow-2xs group/pdf"
+              title="Exporter les séances de ce mois en PDF"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600 group-hover/pdf:scale-110 transition-transform" />
+              <span>PDF Mois</span>
             </button>
           </div>
         </div>

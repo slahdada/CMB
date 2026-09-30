@@ -26,6 +26,8 @@ import {
   parseDateISO, 
   createWhatsAppReminderLink 
 } from '../utils/dateUtils';
+import { useSessions } from '../context/SessionsContext';
+import { usePDFExporter } from '../hooks/usePDFExporter';
 
 interface PatientDetailsModalProps {
   isOpen: boolean;
@@ -51,6 +53,9 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
   onSavePatient,
 }) => {
   const patient = patients.find((p) => p.id === patientId);
+
+  const { settings } = useSessions();
+  const { exportPatient } = usePDFExporter();
 
   // Local state for Notes Médicales (multiline text) - all hooks called unconditionally at top
   const [notesMedicales, setNotesMedicales] = useState<string>(
@@ -188,12 +193,23 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportPatient(patient, sessions, settings)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-bold transition shadow-2xs group/pdf"
+              title="Exporter la fiche dossier de ce patient au format PDF"
+            >
+              <FileText className="w-4 h-4 text-rose-600 group-hover/pdf:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Dossier PDF</span>
+            </button>
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body content */}
@@ -652,17 +668,27 @@ export const PatientDetailsModal: React.FC<PatientDetailsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <button
-            onClick={() => {
-              onClose();
-              onEditPatient(patient);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>Modifier la fiche complète</span>
-          </button>
+        <div className="p-4 sm:p-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose();
+                onEditPatient(patient);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-100 transition"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Modifier dossier</span>
+            </button>
+
+            <button
+              onClick={() => exportPatient(patient, sessions, settings)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 text-xs font-bold transition shadow-2xs group/pdf"
+            >
+              <FileText className="w-3.5 h-3.5 text-rose-600 group-hover/pdf:scale-110 transition-transform" />
+              <span>Exporter Fiche Dossier (PDF)</span>
+            </button>
+          </div>
 
           <button
             onClick={onClose}
